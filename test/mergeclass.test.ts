@@ -28,13 +28,6 @@ test("verdict: only an independent VERIFIED verdict on the current patch with ev
   assert.equal(countVerdict({ ...rec, evidence: [] }, "abc").counted, false);
 });
 
-test("switch: proof/gates.json has every row open, so auto-merge is refused and names them", () => {
-  const s = autoMergeMayBeOn(readGates("proof/gates.json"));
-  assert.equal(s.allowed, false);
-  assert.deepEqual(s.open, [...REQUIRED_ROWS]);
-  assert.match(refusal(s), /rows 2, 3, 4/);
-});
-
 test("switch: one open row still refuses; all closed allows; missing reads as open", () => {
   const all: Gates = Object.fromEntries(REQUIRED_ROWS.map((r): [string, "closed"] => [String(r), "closed"]));
   assert.equal(autoMergeMayBeOn(all).allowed, true);

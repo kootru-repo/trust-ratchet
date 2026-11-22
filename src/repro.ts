@@ -50,7 +50,7 @@ export const withDeps = <T>({ root, pkg, depsFrom, work }: { root: string; pkg: 
     return work();
   } finally {
     // Remove the link itself. Never a recursive delete: that could follow the link into the real dependencies.
-    for (const link of made) if (isLink(link)) fs.rmdirSync(link);
+    for (const link of made) if (isLink(link)) { if (process.platform === "win32") fs.rmdirSync(link); else fs.unlinkSync(link); }
   }
 };
 
