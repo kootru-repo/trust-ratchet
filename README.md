@@ -9,6 +9,8 @@
 
 It works with [Claude Code](https://claude.com/claude-code) through its hooks. It has no runtime dependencies and uses no API key.
 
+> **Built on Lauren Tan's lessons.** Ratchet puts into practice the principles of her talk ["All Code Is Slop (Except Mine)"](https://ai.engineer/code/2026/talks/lauren-tan) ([video](https://www.youtube.com/watch?v=ZZ19zhYnDKY)) and of her [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin: a program decides before a model does, every correction becomes a lint rule or a test, and the one who wrote the code never signs it off. If you have not seen the talk, start there. [What Ratchet takes from each](#inspired-by).
+
 ```
 agent edits a file ──► programs check it ──► facts go back to the agent
 agent ends its turn ─► checks, the mapped test, drivers ─► a failure the session caused holds the turn
@@ -18,6 +20,7 @@ you correct the agent ─► `ratchet rule add` ─► proven on the fix commit 
 ## Contents
 
 - [Why](#why)
+- [Inspired by](#inspired-by)
 - [What it does](#what-it-does)
 - [See it in one minute](#see-it-in-one-minute)
 - [Quick start](#quick-start)
@@ -39,6 +42,29 @@ A coding agent says "done, tests pass" whether or not that is true. Asking it to
 2. **Every correction becomes a check.** A fix you had to ask for turns into a rule or a test, not another instruction.
 3. **Nothing loosens by itself.** Backlogs may fall and never rise. The harness's own loop may add or tighten; every change is logged with its undo.
 4. **The author is never the reviewer.** Review is done by sessions that never saw the work, and a finding stands only with quoted code a program has matched against the tree.
+
+## Inspired by
+
+Ratchet is an independent project. It shares no code or prompts with its sources and is not affiliated with or endorsed by their authors; the ideas are theirs, the mistakes are ours.
+
+**Lauren Tan, ["All Code Is Slop (Except Mine)"](https://ai.engineer/code/2026/talks/lauren-tan)** (AI Engineer CODE 2026, [video](https://www.youtube.com/watch?v=ZZ19zhYnDKY)). The talk's lessons are the design:
+
+| Lesson from the talk | In Ratchet |
+|---|---|
+| Each correction becomes a deterministic check, not a line of prose | `ratchet rule add`, proven on the fix commit it comes from |
+| Agents copy what is there: stop new cases, then clean the old ones | A census of each rule's fault; the backlog may fall and never rise |
+| Ban what needs nuance to use well; imports across a boundary are forbidden | `ban-api`, `ban-pattern` and `ban-import` rules on the files you name |
+| Comments become excuses | The escape-hatch ceiling, and `ratchet comments --mode excuses` |
+| A check's message names the root cause and the fix | A rule without its fix text is refused; every finding reaches the agent with its fix |
+| Runtime verification: run the code | The mapped test and the drivers run before a turn may end |
+| Review the verification artifacts, not the diff | Every checked turn leaves a verification record |
+| Judge by outcomes: reverts and the fixes that follow | `ratchet measure` reads fixes, fixes of a fix and reverts from git history |
+
+`ratchet lessons` prints a card of all nineteen lessons of the talk for your project: which are in use, what effect is measured, and which Ratchet does not do (it says so for each).
+
+**[pstack](https://github.com/cursor/plugins/tree/main/pstack)**, her plugin of working practice for coding agents. Ratchet's experimental swarm holds workers and verifiers to its rules: a verdict covers one patch, the verifier never wrote the code it proves, a fault the base already has does not block, and a worker stages only the files it changed.
+
+**Sashiko**, the Linux kernel review system (Gushchin and Brewer, "Sashiko: Lessons from building an agentic code review system for Linux", Google Cloud blog, 2026). Ratchet's review takes from it: one focus per reviewer, every reviewer records what it ruled out, shaky dismissals get a second look, one verifier per hard case.
 
 ## What it does
 
@@ -322,14 +348,6 @@ It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall
 
 **Can a team share rules?** Yes: `init --in-repo` and `rule add --in-repo` keep them in `.ratchet/` in the repository.
 
-## Background
-
-Ratchet applies ideas from these public sources and shares no code or prompts with them:
-
-- Sashiko, the Linux kernel review system (Gushchin and Brewer, "Sashiko: Lessons from building an agentic code review system for Linux", Google Cloud blog, 2026): one focus per reviewer, every reviewer records what it ruled out, shaky dismissals get a second look, one verifier per hard case.
-- Lauren Tan's talk "All code is slop": deterministic checks come before anything a model says, and every correction should become a lint rule or a test, not another line of prose.
-- [pstack](https://github.com/cursor/plugins/tree/main/pstack), from the same author: the rules the experimental swarm holds its workers and verifiers to (a verdict covers one patch, the verifier never wrote the code, a fault the base already has does not block).
-
 ## Contributing
 
 Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md](SECURITY.md). Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -339,3 +357,7 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 Copyright © 2026 the Ratchet authors (see [AUTHORS.md](AUTHORS.md)).
 
 Released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). You may use, copy, change and share it. If you share a changed version, or run one as a service for others over a network, you must make its source available under the same licence. It comes with no warranty.
+
+---
+
+<sub>A [Kootru Labs](https://kootru.com) project.</sub>
