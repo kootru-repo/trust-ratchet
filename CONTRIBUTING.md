@@ -33,7 +33,7 @@ Node 22.6 or later is needed; there is no build step. Tests use `RATCHET_HOME` i
 
 - One topic per pull request, with a description of what was checked.
 - CI must pass on Windows and Linux.
-- By contributing you agree that your contribution is licensed under the MIT License.
+- By contributing you agree that your contribution is licensed under the GNU Affero General Public License v3.0.
 
 ## Reporting bugs
 

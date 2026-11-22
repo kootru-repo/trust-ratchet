@@ -16,7 +16,7 @@
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=22.6"
   },

@@ -4,7 +4,7 @@ Notable changes are listed here. The format follows [Keep a Changelog](https://k
 
 ## [0.1.0] - 2026-11-22
 
-First public release.
+First public release, under AGPL-3.0.
 
 ### Added
 - The coding harness for Claude Code: checks after each edit and before each turn ends, `advise` and `enforce` modes, rules from corrections with a census, the escape-hatch ceiling, the comments constraint.

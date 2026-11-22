@@ -1,7 +1,7 @@
 # Ratchet
 
 [![CI](https://github.com/kootru-repo/trust-ratchet/actions/workflows/ci.yml/badge.svg)](https://github.com/kootru-repo/trust-ratchet/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 ![Node 22.6+](https://img.shields.io/badge/node-%E2%89%A5%2022.6-brightgreen)
 ![Dependencies: none at runtime](https://img.shields.io/badge/runtime%20dependencies-0-success)
 
@@ -281,4 +281,6 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 
 ## License
 
-[MIT](LICENSE)
+Copyright © 2026 the Ratchet authors.
+
+Released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). You may use, copy, change and share it. If you share a changed version, or run one as a service for others over a network, you must make its source available under the same licence. It comes with no warranty.
