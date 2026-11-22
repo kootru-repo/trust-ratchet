@@ -269,10 +269,11 @@ It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall
 
 ## Background
 
-Ratchet applies ideas from two public sources and shares no code or prompts with either:
+Ratchet applies ideas from these public sources and shares no code or prompts with them:
 
 - Sashiko, the Linux kernel review system (Gushchin and Brewer, "Sashiko: Lessons from building an agentic code review system for Linux", Google Cloud blog, 2026): one focus per reviewer, every reviewer records what it ruled out, shaky dismissals get a second look, one verifier per hard case.
 - Lauren Tan's talk "All code is slop": deterministic checks come before anything a model says, and every correction should become a lint rule or a test, not another line of prose.
+- [pstack](https://github.com/cursor/plugins/tree/main/pstack), from the same author: the rules the experimental swarm holds its workers and verifiers to (a verdict covers one patch, the verifier never wrote the code, a fault the base already has does not block).
 
 ## Contributing
 
