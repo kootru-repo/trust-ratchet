@@ -1,0 +1,41 @@
+{
+  "name": "trust-ratchet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A trust harness for AI coding agents: deterministic checks after every edit and before every turn ends, corrections that become rules, and code review that separates finding bugs from verifying them.",
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "check-types": "tsc --noEmit",
+    "review": "node --experimental-strip-types --no-warnings src/cli.ts review",
+    "bench": "node --experimental-strip-types --no-warnings src/cli.ts bench",
+    "vault": "node --experimental-strip-types --no-warnings src/cli.ts vault",
+    "ratchet": "node --experimental-strip-types --no-warnings src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kootru-repo/trust-ratchet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kootru-repo/trust-ratchet/issues"
+  },
+  "homepage": "https://github.com/kootru-repo/trust-ratchet#readme",
+  "keywords": [
+    "claude-code",
+    "ai-agents",
+    "code-review",
+    "hooks",
+    "guardrails",
+    "verification",
+    "typescript",
+    "python"
+  ]
+}
