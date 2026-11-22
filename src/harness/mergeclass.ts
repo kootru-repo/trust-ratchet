@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { readFileSync } from "node:fs";
 
 /** Result of one lane at a turn end. Inconclusive and pending are never a pass (plan section 1). */

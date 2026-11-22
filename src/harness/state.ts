@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -65,7 +66,7 @@ export const writeText = (file: string, text: string): void => {
 export const writeJson = (file: string, value: unknown): void => writeText(file, `${JSON.stringify(value, null, 2)}\n`);
 
 /**
- * A linked git worktree is the same project as its main repository (probe P3: without this a worker in a worktree
+ * A linked git worktree is the same project as its main repository (without this a worker in a worktree
  * ran with no project rules, checks or switch). A linked worktree has a `.git` file reading `gitdir: <main>/.git/worktrees/<name>`;
  * the main repository is the folder that holds that `.git`. Anything else (a normal repository, no repository) is returned as given.
  */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Differential check: two independent builds of one brief are run on the same corpus of inputs; where they disagree one of them is wrong, or the brief is open.
  * The corpus holds INPUTS only (written by a session that has seen the brief and neither build), so no expected value is ever trusted from a model.

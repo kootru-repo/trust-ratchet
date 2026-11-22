@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export type Cite = { file: string; line: number; quote: string };
 
 export type Severity = "critical" | "major" | "minor";

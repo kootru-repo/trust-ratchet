@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -5,7 +6,7 @@ import { decideStep, passedStep, type RunRecord, type Step, type StepDecision } 
 import { DEFAULT_LIMITS, type Limits, type Machine } from "./launchgate.ts";
 import { runSwarm, type RunRecord as SwarmRecord, type Slice, type SpawnWorker, type Verify } from "./orchestrator.ts";
 
-/** The generalised ladder runner (SCALE_PLAN T4): reads the run records, takes a census of other projects, asks decideStep, and only then runs. Pure parts first; every impure part is injected. */
+/** The generalised ladder runner: reads the run records, takes a census of other projects, asks decideStep, and only then runs. Pure parts first; every impure part is injected. */
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);

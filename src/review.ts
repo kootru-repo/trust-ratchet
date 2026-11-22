@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { checkCite } from "./cite.ts";
 import { gatherContext } from "./context.ts";
 import { parseSpecialist, parseVerifier } from "./parse.ts";

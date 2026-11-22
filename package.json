@@ -10,7 +10,8 @@
     "review": "node --experimental-strip-types --no-warnings src/cli.ts review",
     "bench": "node --experimental-strip-types --no-warnings src/cli.ts bench",
     "vault": "node --experimental-strip-types --no-warnings src/cli.ts vault",
-    "ratchet": "node --experimental-strip-types --no-warnings src/cli.ts"
+    "ratchet": "node --experimental-strip-types --no-warnings src/cli.ts",
+    "demo": "node --experimental-strip-types --no-warnings examples/demo.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

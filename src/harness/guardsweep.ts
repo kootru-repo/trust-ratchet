@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import { forShell } from "../shellcmd.ts";
 import crypto from "node:crypto";
@@ -11,7 +12,7 @@ import { matchesAny } from "./rules.ts";
 import { readJson, writeJson, writeText } from "./state.ts";
 
 /**
- * The measure of the written tests (gaps H1 to H3 of AUDIT.md). Two steps, both resumable and bounded in time:
+ * The measure of the written tests. Two steps, both resumable and bounded in time:
  *
  * sweep: a sample of past fix commits, fixed by a seed before anything runs, each given one model call. Every
  *   outcome is counted by its class. What the sweep runs is what the loop runs (`attemptGuard`).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Row 12: the driver contract and its checker. A driver is one command a project lists in its config. Pure: the
  * checker runs nothing itself. It is given `env.run` (runs a driver with extra arguments, returns code and text)

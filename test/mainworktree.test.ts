@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -10,7 +11,7 @@ process.env.RATCHET_CHILD = "";
 const tmp = (name: string): string => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `ratchet-${name}-`)));
 const git = (cwd: string, ...args: string[]): string => execFileSync("git", ["-C", cwd, "-c", "user.email=t@t", "-c", "user.name=t", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 
-test("a linked worktree is the same project as its main repository (probe P3)", () => {
+test("a linked worktree is the same project as its main repository", () => {
   process.env.RATCHET_HOME = tmp("home");
   const main = tmp("main");
   git(main, "init", "-q");

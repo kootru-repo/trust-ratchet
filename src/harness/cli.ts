@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -585,7 +586,7 @@ export const harnessCli = (argv: string[], source: string): number => {
         `Rules: ${rules.length}, of which ${rules.filter((r) => r.proof).length} proven on a past fix; backlog ${rules.reduce((a, r) => a + sum(r.baseline ?? {}), 0)}.`,
         `Escape hatches: ${hatches.total}${config.hatchCeiling === undefined ? ", no ceiling stored" : `, ceiling ${config.hatchCeiling}`}.`,
         `Turns recorded: ${records.length}; with a failure of the session: ${failing}; held: ${records.filter((r) => r.held).length}; with a check that could not run: ${records.filter((r) => (r.notRun ?? []).length > 0).length}.`,
-        "Model review: trust level 0 until rulings exist (AUDIT.md). The numbers above come from programs only.",
+        "Model review: trust level 0 until rulings exist. The numbers above come from programs only.",
       ].join("\n"),
     );
     return 0;

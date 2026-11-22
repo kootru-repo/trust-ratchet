@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { decideLaunch, DEFAULT_LIMITS, type Limits, type Machine } from "./launchgate.ts";
 
-/** SCALE_PLAN T4: 1 worker, then 2, then 3 and 4 only when no other project shares the machine. Pure. */
+/** 1 worker, then 2, then 3 and 4 only when no other project shares the machine. Pure. */
 export type Step = 1 | 2 | 3 | 4;
 export type RunRecord = {
   step: Step;

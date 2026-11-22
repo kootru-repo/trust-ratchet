@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Specialist } from "./plan.ts";
 import type { ReproConfig, TestRunner } from "./repro.ts";
 

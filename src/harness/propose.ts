@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { statements, type Rule } from "./rules.ts";
 
 /**
@@ -7,9 +8,9 @@ import { statements, type Rule } from "./rules.ts";
  */
 export const ALL_SHAPES = ["keyword-added", "name-swapped", "keyword-removed", "constant-swapped", "import-swapped", "await-added", "operator-swapped"] as const;
 export type Shape = (typeof ALL_SHAPES)[number];
-/** The shapes the loop uses when nothing else is said: those that caught a later fix on history they were not tuned on (BENCHMARK.md). */
+/** The shapes the loop uses when nothing else is said: those that caught a later fix on history they were not tuned on. */
 export const DEFAULT_SHAPES: readonly Shape[] = ["keyword-added", "name-swapped"];
-/** A pattern that fires in more places than this names a habit, not a fault. Taken from the backtest (BENCHMARK.md). */
+/** A pattern that fires in more places than this names a habit, not a fault. Taken from the backtest. */
 export const DEFAULT_CAP = 25;
 export type FixFile = { file: string; removed: string[]; added: string[]; after: string; /** The text before, where the change is not a commit. */ before?: string };
 export type Candidate = Pick<Rule, "kind" | "pattern" | "files" | "message" | "fix"> & { scope?: "statement"; shape: Shape; /** name-swapped: the name the fix replaced. */ was?: string };

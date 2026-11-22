@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { autoMergeMayBeOn, classOfTurn, countVerdict, REQUIRED_ROWS, type Gates, type TurnFacts, type VerdictRecord } from "../src/harness/mergeclass.ts";

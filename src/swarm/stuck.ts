@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** One worker as the orchestrator records it. */
 export type WorkerRecord = {
   id: string;
@@ -12,7 +13,7 @@ export type WorkerRecord = {
 export type Liveness = "finished" | "running" | "stuck";
 
 /**
- * SCALE_PLAN K10: a worker is stuck when it shows nothing new past its stuck-after time.
+ * a worker is stuck when it shows nothing new past its stuck-after time.
  * Judged by side effects only: the worker's own status text is never an input.
  * Silence runs from the last side effect, or from the start when there never was one.
  */

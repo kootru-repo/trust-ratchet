@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Property-based testing through a page (the proof plan row 14, second set): generated sequences of a user's inputs
+ * Property-based testing through a page: generated sequences of a user's inputs
  * (click, key, type, wait) with properties of what the page shows. The page is behind an injected PageDriver, so this
  * module names no browser. A seed and the sequence are recorded; a failing sequence shrinks by halving; the failing
  * input is run again twice from the recorded seed and index (props.replayTwice) before it counts, and a failure that

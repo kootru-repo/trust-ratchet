@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Variables that make Claude Code, or a provider SDK it starts, bill an API account instead of the owner's subscription. */
 const BILLING = /^(ANTHROPIC_(API_KEY|AUTH_TOKEN|BASE_URL|BEDROCK_.*|VERTEX_.*|FOUNDRY_.*)|CLAUDE_CODE_USE_(BEDROCK|VERTEX|FOUNDRY)|OPENAI_API_KEY|OPENROUTER_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY)$/i;
 

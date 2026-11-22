@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Row 15, plan item 20: where a session's tokens go. Pure: reads transcript text (JSONL) and says how many tokens
  * were spent on verification and on the rest, with and without the subagents' transcripts.

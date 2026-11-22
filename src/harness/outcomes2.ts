@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import { outcomes, parseLog, type Commit } from "./outcomes.ts";
 

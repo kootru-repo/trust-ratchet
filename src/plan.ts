@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export type Specialist = { id: string; focus: string; lookFor: string };
 
 export const SPECIALISTS: Specialist[] = [

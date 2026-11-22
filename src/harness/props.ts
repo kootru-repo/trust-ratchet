@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A property-test runner (the proof plan row 14): a seeded generator, N cases, shrinking by halving, and a program
+ * A property-test runner: a seeded generator, N cases, shrinking by halving, and a program
  * check that the inputs were generated (seed recorded, distinct count, not a fixed list). A failure carries its seed
  * and case index, and replays from them.
  */

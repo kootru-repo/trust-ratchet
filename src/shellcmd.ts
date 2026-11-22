@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A command run with `shell: true` goes through cmd.exe on Windows, and cmd.exe reads a forward slash in a program's
  * path as the start of a switch: `.venv/Scripts/python.exe -B x.py` fails with "'.venv' is not recognized".

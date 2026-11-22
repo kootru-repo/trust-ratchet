@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { createHash } from "node:crypto";
 
 /** The orchestrator's record of what a worker handed over. */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import { forShell } from "../shellcmd.ts";
 import fs from "node:fs";
@@ -7,7 +8,7 @@ import { atLeast } from "./level.ts";
 import { projectDir, readConfig, readJson, writeJson, type CheckCmd } from "./state.ts";
 
 /**
- * What the loop can say about itself beyond its level (gaps H4 to H7 of AUDIT.md):
+ * What the loop can say about itself beyond its level:
  * what was acted on, whether its own measure is contradicted by what followed, a baseline run for a project
  * no session has edited yet, and a loop that is off without anyone having switched it off.
  */

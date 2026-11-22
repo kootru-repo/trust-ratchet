@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { atLeast, commitsNeeded, levelOf, renderLevel, upperBound, type LevelFacts } from "../src/harness/level.ts";

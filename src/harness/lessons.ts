@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +15,7 @@ import { effective, normRoot, projectDir, readConfig, readState, type ProjectCon
 import { isWritten, readRules } from "./turn.ts";
 
 /**
- * The lesson card (criteria C1 to C10 of AUDIT.md). The nineteen lessons of
+ * The lesson card. The nineteen lessons of
  * the talk named in the Ratchet README, each with two cells kept apart: what is in use in this project, and
  * what effect is measured. It reads what the harness already keeps and counts with the functions that already count.
  * It never says a lesson is met, and a mechanism in use with no effect on record says exactly that.

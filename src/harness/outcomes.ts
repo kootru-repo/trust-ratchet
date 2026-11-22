@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { isFixSubject } from "../history.ts";
 import { matchesAny, type Rule } from "./rules.ts";
 import type { CheckCmd, ProjectConfig } from "./state.ts";

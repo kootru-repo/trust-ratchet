@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Checks a project's feature map against verification records (the proof plan row 11, 6b.2, 6c). A record names the
+ * Checks a project's feature map against verification records. A record names the
  * feature and the entry point it CLAIMS and the one it USED, with evidence. A record through another entry point than
  * the claimed one is refused. An entry point with no accepted record is listed as unverified, and one marked
  * unreachable needs its prerequisite and the route tried; it is never reported as passed through a different path.

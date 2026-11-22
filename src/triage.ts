@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { CiteResult } from "./cite.ts";
 import type { Check, Cite, Concern, Dismissal, Dropped, Severity } from "./types.ts";
 

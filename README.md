@@ -19,6 +19,7 @@ you correct the agent ─► `ratchet rule add` ─► proven on the fix commit 
 
 - [Why](#why)
 - [What it does](#what-it-does)
+- [See it in one minute](#see-it-in-one-minute)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
 - [Use cases](#use-cases)
@@ -51,6 +52,31 @@ A coding agent says "done, tests pass" whether or not that is true. Asking it to
 | **Autonomous loop (optional)** | After each checked turn it can write a trial rule from a fix commit, map a new test once it has passed alone, lower backlogs, and promote or retire its own rules. It only tightens and tells the next session what it did. |
 | **Code review** | `ratchet review` and `review-work`: specialists look for candidates, a program checks every quotation, verifiers decide with cited code, and a confirmed finding can be reproduced as a failing test. |
 | **Measurement** | `measure`, `level`, `lessons`, `dashboard` and `backtest` report what the harness changed, from git history and its own records. |
+
+## See it in one minute
+
+No install, no Claude Code, nothing written outside the temp folder:
+
+```bash
+git clone https://github.com/kootru-repo/trust-ratchet.git && cd trust-ratchet
+npm install && npm run demo
+```
+
+Part of what it prints, which is what the agent is told:
+
+```
+=== 2. The agent writes a file that breaks a rule: the fact and its fix come back at once ===
+decision: block
+Ratchet: 1 fact from programs about the file you just edited.
+1. calc.js: rule no-eval, line 1. eval runs text as code Fix: Parse the input with JSON.parse or a real parser.
+
+=== 3. The agent removes the eval but breaks the sum, then tries to end its turn ===
+decision: block
+Ratchet: the turn checks fail in <repo> (1 changed file, 1 command; hold 1 of 2). Fix these before ending the turn, or tell the user plainly why one cannot be fixed.
+1. calc fails, exit 1 (node calc.test.js). add(2, 3) should be 5 Fix: Make the code pass: change the code, not the test, unless the test itself is wrong, and say so if it is.
+```
+
+The whole output, explained: [docs/EXAMPLE.md](docs/EXAMPLE.md).
 
 ## Quick start
 
@@ -116,17 +142,20 @@ Five hook entries are installed: `SessionStart`, `PreToolUse` and `PostToolUse` 
 
 ## Use cases
 
-**Stop a repeated mistake.** The agent keeps calling `subprocess.run` without an encoding. Fix it once, then:
+**Stop a repeated mistake.** The agent keeps calling `subprocess.run` without an encoding. Fix it once, then turn the fix commit into a rule:
 
 ```bash
 ratchet rule add --id subprocess-text-needs-encoding --kind ban-pattern \
-  --pattern "subprocess\.run\((?![^)]*encoding=)[^)]*text=True" --scope statement \
+  --pattern 'subprocess\.run\((?![^)]*encoding=)[^)]*text=True' \
   --files "tools/**/*.py" \
   --message "subprocess.run(text=True) without encoding= breaks on non-ASCII output" \
   --fix "add encoding='utf-8'" \
-  --proof-commit <the fix commit> --proof-file tools/build.py
-ratchet census          # how many of the same fault are still in the repository
+  --proof-commit HEAD --proof-file tools/build.py
+# Rule subprocess-text-needs-encoding added, proven on a795896a: fired on 1 line(s) the fix removed, on none it added.
+# Census: 1 more of the same in 1 file(s), kept as the backlog (may fall, never rise): tools/other.py 1.
 ```
+
+The full run is in [docs/EXAMPLE.md](docs/EXAMPLE.md).
 
 **Keep a layer clean.** Ban an import in a folder: `--kind ban-import --pattern torch --files "core/**/*.py"`.
 
@@ -261,9 +290,9 @@ It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall
 
 **Does it need an API key?** No. Review commands call the `claude` command you are already logged in to; the hooks call no model at all.
 
-**Which languages?** The hooks check any text file against rules and parse TypeScript, JavaScript, Python and JSON. Review has packs for TypeScript and Python.
+**Which languages?** Rules and the escape-hatch count apply to any text file. The syntax check covers TypeScript (`.ts`, `.mts`, `.cts`; not `.tsx`), JavaScript, JSON, and Python when `python` is on the path. Review has packs for TypeScript and Python.
 
-**Which platforms?** It is developed on Windows and tested in CI on Windows and Linux.
+**Which platforms?** It is developed on Windows and tested in CI on Windows, Linux and macOS.
 
 **Can a team share rules?** Yes: `init --in-repo` and `rule add --in-repo` keep them in `.ratchet/` in the repository.
 
@@ -281,6 +310,6 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 
 ## License
 
-Copyright © 2026 the Ratchet authors.
+Copyright © 2026 the Ratchet authors (see [AUTHORS.md](AUTHORS.md)).
 
 Released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). You may use, copy, change and share it. If you share a changed version, or run one as a service for others over a network, you must make its source available under the same licence. It comes with no warranty.

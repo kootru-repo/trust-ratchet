@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import fs from "node:fs";
 import path from "node:path";
 import { countVerdict, type VerdictWord } from "../harness/mergeclass.ts";
@@ -87,7 +88,7 @@ export const workerEnv = (slice: Slice, o: Pick<Options, "root" | "holdFile" | "
   };
 };
 
-/** SCALE_PLAN K2, K6, K9, K10 and the proof plan's row 9 in one loop. Returns the record it also writes. */
+/** Returns the record it also writes. */
 export const runSwarm = async (o: Options): Promise<RunRecord> => {
   const now = o.now ?? Date.now;
   const pollMs = o.pollMs ?? 1000;

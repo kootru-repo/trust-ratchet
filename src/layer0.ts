@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from "node:child_process";
 import { forShell } from "./shellcmd.ts";
 import path from "node:path";

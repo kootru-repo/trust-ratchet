@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Verifier-held rules. A judgment rule is turned into a rubric of yes/no questions that an independent session answers; a program refuses
  * unless every answer is "yes" AND the verifier's own tool trace holds the evidence each question names. The verifier is never believed on its word.

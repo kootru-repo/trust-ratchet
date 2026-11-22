@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A Doctor over injected probes (the proof plan row 10, 6b.2). Ready means usable: the process is up, it is the
+ * A Doctor over injected probes. Ready means usable: the process is up, it is the
  * right version or build, the port is owned by the process we started, and a probe of the real user path works.
  * Every probe is injected, so the module names no project, tool or port.
  */

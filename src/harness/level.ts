@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The verification level of a project: how much checking it has been shown to have, computed by program from the
  * harness's own records. It is not a statement that the code is right. Each level needs every level below it, and

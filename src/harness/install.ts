@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { STOP_TIMEOUT_S } from "./limits.ts";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

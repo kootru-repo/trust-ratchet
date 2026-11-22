@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { parseResult, type Result } from "./verdict.ts";
 
 /** What one required slice came back with: the worker's report text, absent when the worker never returned or was stuck. */
@@ -21,7 +22,7 @@ export type Coverage = {
 };
 
 /**
- * SCALE_PLAN K2: the run's list of required slices is written before the fan-out; a missing or unparseable
+ * the run's list of required slices is written before the fan-out; a missing or unparseable
  * result is a recorded gap, never a pass; the run proceeds with N-1 and says so. A result for a slice that
  * was not required is ignored.
  */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Checked, ReviewResult } from "./types.ts";
 
 const item = (c: Checked, question = false): string =>

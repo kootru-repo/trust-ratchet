@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Context } from "./context.ts";
 import { numbered } from "./context.ts";
 import type { Specialist } from "./plan.ts";

@@ -32,8 +32,8 @@ Node 22.6 or later is needed; there is no build step. Tests use `RATCHET_HOME` i
 ## Pull requests
 
 - One topic per pull request, with a description of what was checked.
-- CI must pass on Windows and Linux.
-- By contributing you agree that your contribution is licensed under the GNU Affero General Public License v3.0.
+- CI must pass on Windows, Linux and macOS.
+- You keep the copyright of your contribution and license it under the GNU Affero General Public License v3.0 (see [AUTHORS.md](AUTHORS.md)). New source files start with `// SPDX-License-Identifier: AGPL-3.0-only`.
 
 ## Reporting bugs
 

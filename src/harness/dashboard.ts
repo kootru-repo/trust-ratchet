@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One page for every project the autonomous loop runs in: the verification level, each requirement met or not, the
  * trend of the assessments and what the loop changed. Pure: it renders what it is given and reads nothing.

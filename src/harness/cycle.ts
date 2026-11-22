@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { createHash } from "node:crypto";
 import { MIN_RUNS_PER_SIDE, median, verdict, type Verdict } from "./outcomes2.ts";
 
-/** the proof plan row 19 and 6c rows 1 and 19. Pure: no clock, no file, no process. */
+/** Pure: no clock, no file, no process. */
 
 /** The exit condition, a checkable predicate over one measured number (lower is better, e.g. failures). */
 export type ExitPredicate = { metric: string; op: "<=" | "=="; target: number };

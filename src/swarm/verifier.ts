@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -45,7 +46,7 @@ const briefing = (h: Handover, checks: Check[]): string =>
     'Read the change (git diff) and judge it. End your reply with one JSON object: {"status":"PASS|ISSUES|BLOCKED","heads":["<base commit sha>"],"method":"what you did"}.',
   ].join("\n");
 
-/** SCALE_PLAN K3, K14: a verifier in a separate clone that runs the checks itself and proves it wrote nothing. */
+/** a verifier in a separate clone that runs the checks itself and proves it wrote nothing. */
 export const makeVerifier = (o: VerifierOptions): Verify => {
   let n = 0;
   return async (handover, diff): Promise<VerifierReport> => {

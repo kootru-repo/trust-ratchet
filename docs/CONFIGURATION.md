@@ -25,7 +25,7 @@ Each entry:
 | Key | Default | Meaning |
 |---|---|---|
 | `maxTestsPerStop` | 3 | The most mapped tests one turn end runs. The rest are reported as not run. |
-| `budgetS.stop` | set by `init` | Time budget in seconds for a turn-end check. |
+| `budgetS.stop` | 120 (written by `init`) | Time budget in seconds for a turn-end check. |
 | `autoLimits` | none | The loop's own turn-end limits. The larger of yours and its is used; removing this key undoes it. |
 | `autoLimitsOn` | false | Lets the loop move its own limits one step a pass. |
 | `hatchCeiling` | counted by `hatches --set-ceiling` | The most escape hatches the repository may hold. The harness may lower it, never raise it. |

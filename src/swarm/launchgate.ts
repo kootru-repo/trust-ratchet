@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import os from "node:os";
 import { execFileSync } from "node:child_process";
 
@@ -21,7 +22,7 @@ export const DEFAULT_LIMITS: Limits = { maxRamPercent: 90, maxCpuPercent: 90, ma
 export type LaunchDecision = { start: true } | { start: false; reasons: string[] };
 
 /**
- * SCALE_PLAN K6: before each worker starts, a program reads the load and refuses the launch over any limit.
+ * before each worker starts, a program reads the load and refuses the launch over any limit.
  * The refusal is data (reasons) so the orchestrator records it; waiting is the caller's loop.
  */
 export const decideLaunch = (m: Machine, limits: Limits = DEFAULT_LIMITS): LaunchDecision => {
