@@ -5,9 +5,10 @@
 # Claude Code sends, then uninstall. Nothing outside <workdir> is written.
 # Usage: scripts/e2e.sh <workdir> [package spec, default: a tarball packed from this checkout]
 set -u
-Q="$1"
+mkdir -p "$1"
+# a POSIX spelling of the folder, so it can go on PATH under Git Bash on Windows too
+Q="$(cd "$1" && pwd)"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-mkdir -p "$Q"
 SPEC="${2:-}"
 if [ -z "$SPEC" ]; then SPEC="$Q/$(cd "$HERE" && npm pack --silent --pack-destination "$Q" | tail -1)"; fi
 export RATCHET_HOME="$Q/home" RATCHET_SETTINGS="$Q/home/settings.json" npm_config_prefix="$Q/prefix"
