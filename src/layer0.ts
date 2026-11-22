@@ -12,7 +12,7 @@ import type { Fact } from "./types.ts";
  */
 export type CheckSpec = { command: string; onlyFile?: boolean };
 
-const MISSING = /is not recognized as an internal or external command|command not found|No such file or directory|Cannot find module|ERR_MODULE_NOT_FOUND|Could not find config file|ESLint couldn't find|Parsing error: parserOptions|This is a bug in your configuration/i;
+const MISSING = /is not recognized as an internal or external command|command not found|^(\/bin\/)?sh: \d+: .+: not found|No such file or directory|Cannot find module|ERR_MODULE_NOT_FOUND|Could not find config file|ESLint couldn't find|Parsing error: parserOptions|This is a bug in your configuration/i;
 /** A compiler diagnostic is the tool working, even when what it says is that a module is missing. */
 const DIAGNOSTIC = /error TS\d+:/;
 export const broke = (output: string): boolean => output.split(/\r?\n/).some((l) => MISSING.test(l) && !DIAGNOSTIC.test(l));

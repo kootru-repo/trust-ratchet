@@ -159,7 +159,7 @@ test("the switch: off by default, a project can be on while the global switch is
   setSwitch({ root: "C:/Work/Quiet", enabled: false });
   assert.equal(effective(global, "C:/Work/Other").enabled, true);
   assert.equal(effective(readState(), "C:/Work/Quiet").enabled, false);
-  assert.match(slug("C:/Work/Proj"), /work-proj$/);
+  assert.match(slug("C:/Work/Proj"), /work-proj$/i);
 });
 
 test("the hook says nothing while switched off, and nothing inside Ratchet's own model calls", () => {

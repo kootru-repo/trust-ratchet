@@ -80,6 +80,9 @@ test("python local imports resolve inside the tree", () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+const ROOT = process.platform === "win32" ? "C:/t" : "/t";
+const ELSEWHERE = process.platform === "win32" ? "C:/elsewhere/x.ts" : "/elsewhere/x.ts";
+
 test("a read counts only when it is real", () => {
   const matches = (c: { quote: string; line: number }) => (c.quote === "good" ? { ok: true, line: c.line } : { ok: false, reason: "quote not found" });
   const base = { file: "src/pick.ts", shown: new Set(["src/page.ts:3"]), matches, required: 2 };
@@ -100,7 +103,7 @@ test("a read counts only when it is real", () => {
   );
   // With no tool record the quote check alone decides.
   assert.equal(judgeReading({ ...base, reads: [cite("src/other.ts", 1), cite("src/clean.ts", 1)], opened: null }).ok, true);
-  assert.deepEqual([...openedFiles({ tools: [{ name: "Read", target: path.join("C:/t", "src", "b.ts") }, { name: "Grep", target: "src" }, { name: "Read", target: "C:/elsewhere/x.ts" }], root: "C:/t" })], ["src/b.ts"]);
+  assert.deepEqual([...openedFiles({ tools: [{ name: "Read", target: path.join(ROOT, "src", "b.ts") }, { name: "Grep", target: "src" }, { name: "Read", target: ELSEWHERE }], root: ROOT })], ["src/b.ts"]);
 });
 
 test("a specialist that did not read is asked once more, and the count is lowered to what exists", async () => {

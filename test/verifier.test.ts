@@ -80,7 +80,7 @@ test("the verifier id differs from the author even when the author has the verif
 });
 
 test("a check that fails on the base too is not held", async () => {
-  const s = setup((head) => async () => pass(head), ["node check.js", "node -e process.exit(3)"]);
+  const s = setup((head) => async () => pass(head), ["node check.js", "node -e \"process.exit(3)\""]);
   const diff = diffTo(s.repo, "ok z\n");
   const v = await s.verify(handover(diff, s.head), diff);
   assert.equal(v.checks[1]?.baseExit, 3);
