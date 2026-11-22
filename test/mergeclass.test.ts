@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { autoMergeMayBeOn, classOfTurn, countVerdict, readGates, refusal, REQUIRED_ROWS, type Gates, type TurnFacts, type VerdictRecord } from "../src/harness/mergeclass.ts";
+import { autoMergeMayBeOn, classOfTurn, countVerdict, REQUIRED_ROWS, type Gates, type TurnFacts, type VerdictRecord } from "../src/harness/mergeclass.ts";
 
 const clean: TurnFacts = { changedSource: true, changedTest: true, allChecksRan: true, tests: "pass", driver: "pass", speed: "pass", speedWord: "faster", speedLimiter: "profile/run3.json", lookChanged: false };
 

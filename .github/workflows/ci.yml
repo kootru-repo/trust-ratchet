@@ -15,12 +15,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Linux is not supported yet: its job runs to show progress and does not fail the build.
     continue-on-error: ${{ matrix.os != 'windows-latest' }}
-    env:
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
-      TMPDIR: ${{ runner.temp }}
     steps:
       - run: git config --global core.autocrlf false
+      # the default temp folder on the Windows runner is a short (8.3) path, which is not the path git reports
+      - shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
