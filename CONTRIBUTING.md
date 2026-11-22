@@ -12,7 +12,7 @@ npm run check-types
 npm test
 ```
 
-Node 22.6 or later is needed; there is no build step. Tests use `RATCHET_HOME` in temporary folders and never touch your real Claude Code settings.
+Node 22.6 or later is needed; there is no build step. `bash scripts/e2e.sh <an empty temp folder>` installs the package into that folder and walks a new user's path (install, a sample project, the hooks, uninstall). Tests use `RATCHET_HOME` in temporary folders and never touch your real Claude Code settings.
 
 ## What makes a change easy to accept
 
