@@ -16,6 +16,7 @@ import { renderReport } from "./report.ts";
 import { reviewFile } from "./review.ts";
 import { initVault, syncVault, writeReview } from "./vault.ts";
 import { HARNESS_COMMANDS, HARNESS_USAGE, harnessCli } from "./harness/cli.ts";
+import { VERSION } from "./version.ts";
 import { checkLogFile } from "./harness/decisionlog.ts";
 import { checkDrivers, renderDriverFaults } from "./harness/drivers.ts";
 import { autoMergeMayBeOn, readGates, refusal } from "./harness/mergeclass.ts";
@@ -82,7 +83,31 @@ const optionsFor = (root: string) => (file: string): ReviewOptions => ({
   ...(argv.includes("--escalate-local") ? { escalateLocal: true } : {}),
 });
 
+const INTRO = `Ratchet ${VERSION}: a trust harness for AI coding agents.
+
+Start here:
+  ratchet install                              add the hooks to Claude Code (your settings file is backed up first)
+  ratchet on --project <dir>                   switch it on for one project (advise mode)
+  ratchet init --project <dir>                 write a config from what is found there
+  ratchet status --project <dir>               what is on and what is checked
+  ratchet on --project <dir> --mode enforce    hold a turn on a failure the session caused
+  ratchet rule add ...                         turn a correction into a rule
+  ratchet uninstall                            remove the hooks again
+
+Guide: https://github.com/kootru-repo/trust-ratchet#readme
+
+Every command:
+`;
+
 const main = async (): Promise<void> => {
+  if (argv[0] === "--version" || argv[0] === "-v" || argv[0] === "version") {
+    console.log(VERSION);
+    return;
+  }
+  if (argv.length === 0 || argv[0] === "help" || argv[0] === "--help" || argv[0] === "-h") {
+    console.log(`${INTRO}${USAGE}\n${HARNESS_USAGE}`);
+    return;
+  }
   if (argv[0] === "guard-sweep") {
     // The measure of the written tests: a seeded sample of past fixes, one model call each, then a walk forward. Resumable.
     const root = repoRoot(path.resolve(flag("project", process.cwd())));
@@ -398,8 +423,10 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  console.error(`${USAGE}
-${HARNESS_USAGE}`);
+  // Not understood: show the usage lines of that command when there are any, never the whole list.
+  const mine = `${USAGE}\n${HARNESS_USAGE}`.split("\n").filter((l) => l.startsWith(`ratchet ${argv[0]} `) || l.trim() === `ratchet ${argv[0]}`);
+  console.error(mine.length > 0 ? `Not understood: ratchet ${argv.join(" ")}\n\nUsage:\n${mine.join("\n")}` : `Unknown command: ${argv[0]}`);
+  console.error("\nRun `ratchet help` for every command.");
   process.exitCode = 2;
 };
 

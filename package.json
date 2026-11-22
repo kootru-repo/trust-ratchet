@@ -1,23 +1,22 @@
 {
   "name": "trust-ratchet",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
+  "version": "0.1.1",
   "description": "A trust harness for AI coding agents: deterministic checks after every edit and before every turn ends, corrections that become rules, and code review that separates finding bugs from verifying them.",
-  "scripts": {
-    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
-    "check-types": "tsc --noEmit",
-    "review": "node --experimental-strip-types --no-warnings src/cli.ts review",
-    "bench": "node --experimental-strip-types --no-warnings src/cli.ts bench",
-    "vault": "node --experimental-strip-types --no-warnings src/cli.ts vault",
-    "ratchet": "node --experimental-strip-types --no-warnings src/cli.ts",
-    "demo": "node --experimental-strip-types --no-warnings examples/demo.ts"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.0",
-    "typescript": "^5.7.0"
-  },
   "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "ratchet": "bin/ratchet.mjs",
+    "trust-ratchet": "bin/ratchet.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "AUTHORS.md",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=22.6"
   },
@@ -38,5 +37,21 @@
     "verification",
     "typescript",
     "python"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "check-types": "tsc --noEmit",
+    "review": "node --experimental-strip-types --no-warnings src/cli.ts review",
+    "bench": "node --experimental-strip-types --no-warnings src/cli.ts bench",
+    "vault": "node --experimental-strip-types --no-warnings src/cli.ts vault",
+    "ratchet": "node --experimental-strip-types --no-warnings src/cli.ts",
+    "demo": "node --experimental-strip-types --no-warnings examples/demo.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
 }

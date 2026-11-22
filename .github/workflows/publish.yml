@@ -1,0 +1,32 @@
+name: Publish to npm
+# Runs when a GitHub release is published. Needs the repository secret NPM_TOKEN (an npm automation token).
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest
+      - run: git config --global user.name ci && git config --global user.email ci@example.invalid
+      - run: npm ci
+      - run: npm run check-types
+      - run: npm test
+      - name: Publish (skipped while no NPM_TOKEN secret is set)
+        if: env.NODE_AUTH_TOKEN != ''
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

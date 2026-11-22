@@ -1,8 +1,22 @@
 # Commands
 
-This is the output of `ratchet help` (`npm run ratchet -- help`). Every command takes `--project <dir>` where shown; the default is the current folder.
+This is the output of `ratchet help`. Every command takes `--project <dir>` where shown; the default is the current folder. `ratchet --version` prints the version.
 
 ```
+Ratchet 0.1.1: a trust harness for AI coding agents.
+
+Start here:
+  ratchet install                              add the hooks to Claude Code (your settings file is backed up first)
+  ratchet on --project <dir>                   switch it on for one project (advise mode)
+  ratchet init --project <dir>                 write a config from what is found there
+  ratchet status --project <dir>               what is on and what is checked
+  ratchet on --project <dir> --mode enforce    hold a turn on a failure the session caused
+  ratchet rule add ...                         turn a correction into a rule
+  ratchet uninstall                            remove the hooks again
+
+Guide: https://github.com/kootru-repo/trust-ratchet#readme
+
+Every command:
 ratchet launchgate [--workers <n>] [--max-workers <n>] [--max-ram <pct>]   (exit 0 start, 1 wait)
 ratchet gates [--project <dir>] [--file <gates.json>]   (exit 0 when row 18 allows auto-merge, 1 when rows are open)
 ratchet decisions <log.md> [--repo <dir>] [--previous <file>]

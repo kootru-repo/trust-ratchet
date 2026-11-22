@@ -80,39 +80,61 @@ The whole output, explained: [docs/EXAMPLE.md](docs/EXAMPLE.md).
 
 ## Quick start
 
-**Needs:** Node 22.6 or later, git, and the `claude` command, logged in. Reproduction of findings also needs `tar`.
+**Needs:** Node 22.6 or later, git, and [Claude Code](https://claude.com/claude-code), logged in. Reproduction of review findings also needs `tar`.
+
+**Install in one line:**
+
+```bash
+npm install -g github:kootru-repo/trust-ratchet && ratchet install
+```
+
+That puts the `ratchet` command on your path and adds the hooks to Claude Code (see [what it writes](#what-it-writes-and-how-to-remove-it); your settings file is backed up first). Nothing is switched on yet.
+
+To try it once without a global install: `npx -y github:kootru-repo/trust-ratchet install`.
+
+**Switch it on for a project:**
+
+```bash
+cd /path/to/your/project
+ratchet on --project .        # advise mode: it reports, it never holds a turn
+ratchet init --project .      # writes a config from what it finds (package scripts, tsconfig, tests beside their files)
+ratchet status --project .
+```
+
+Then start Claude Code in that project. Ratchet tells the session what it checks, and the session sees the results after each edit. In Claude Code, `/ratchet status` runs the same command.
+
+When you trust what it reports, hold the turn on failures the session caused:
+
+```bash
+ratchet on --project . --mode enforce
+```
+
+`ratchet on` with no `--project` switches it on for every project. `ratchet help` lists every command, and `ratchet uninstall` removes the hooks.
+
+<details>
+<summary><b>From a clone</b> (to read or change the source)</summary>
 
 ```bash
 git clone https://github.com/kootru-repo/trust-ratchet.git
 cd trust-ratchet
 npm install          # dev dependencies only: TypeScript and Node types
 npm test
-
-# install the hooks (see "What it writes" below; your settings file is backed up first)
 npm run ratchet -- install
-
-# switch it on for one project, in advise mode
 npm run ratchet -- on --project /path/to/your/project
-npm run ratchet -- init --project /path/to/your/project     # writes a config from what it finds
-npm run ratchet -- status --project /path/to/your/project
 ```
 
-Then start Claude Code in that project. Ratchet tells the session what it checks, and the session sees the results after each edit. In Claude Code, `/ratchet status` runs the same command.
-
-When you trust what it reports, hold the turn on failures:
-
-```bash
-npm run ratchet -- on --project /path/to/your/project --mode enforce
-```
-
-After `install`, the installed copy can be called from anywhere:
+`npm run ratchet --` is the same command line as `ratchet`. After `install`, the installed copy can also be called directly:
 
 ```bash
 node --experimental-strip-types --no-warnings ~/.claude/ratchet/app/ratchet.ts status
 # Windows also gets a launcher:  %USERPROFILE%\.claude\ratchet\ratchet.cmd status
 ```
 
-> The hooks run the installed copy, never the clone, so editing Ratchet's source cannot break a running session. Run `install` again after you pull or change the source.
+</details>
+
+> The hooks run an installed copy, never the package or the clone, so updating or editing Ratchet cannot break a running session. Run `ratchet install` again after you update.
+
+**Update:** `npm install -g github:kootru-repo/trust-ratchet && ratchet install`. **Remove:** `ratchet uninstall && npm uninstall -g trust-ratchet`, then delete `~/.claude/ratchet` if you also want the rules and records gone.
 
 ## How it works
 
@@ -186,7 +208,7 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 
 ## Commands
 
-`ratchet` below means `npm run ratchet --` in the clone, or the installed copy. Every command takes `--project <dir>` (default: the current folder). The full list with every flag is in [docs/COMMANDS.md](docs/COMMANDS.md); `ratchet help` prints it.
+`ratchet` is the installed command (in a clone: `npm run ratchet --`). Every command takes `--project <dir>` (default: the current folder). The full list with every flag is in [docs/COMMANDS.md](docs/COMMANDS.md); `ratchet help` prints it.
 
 | Command | What it does |
 |---|---|
@@ -278,7 +300,9 @@ Their interfaces will change.
 
 - copies the harness to `~/.claude/ratchet/app` and proves the copy starts;
 - adds five hook entries to `~/.claude/settings.json`, after a backup to `~/.claude/ratchet/backup/`, leaving every other entry and the file's formatting as they were;
-- writes the slash command `~/.claude/commands/ratchet.md` and, on Windows, `~/.claude/ratchet/ratchet.cmd`.
+- writes the slash command `~/.claude/commands/ratchet.md` and a Windows launcher, `~/.claude/ratchet/ratchet.cmd`.
+
+Installed from the npm package, the `ratchet` command also keeps a copy of its source under `~/.claude/ratchet/pkg/`, because Node does not run TypeScript from inside `node_modules`.
 
 It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall` removes exactly the five entries and the slash command; rules and records stay until you delete `~/.claude/ratchet`.
 
@@ -287,6 +311,8 @@ It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall
 **Does it slow the agent down?** The edit hook is a parse and a few pattern checks. The turn-end check has a time budget and runs a command only when its own files changed.
 
 **Will it block me on failures I did not cause?** No. Only a failure this session introduced can hold a turn, only in `enforce` mode, and at most twice.
+
+**Is it on npm?** Not yet. The one-line install takes the package straight from GitHub; it has no runtime dependencies, so nothing else is downloaded.
 
 **Does it need an API key?** No. Review commands call the `claude` command you are already logged in to; the hooks call no model at all.
 
