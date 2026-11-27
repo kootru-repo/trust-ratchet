@@ -28,6 +28,7 @@ you correct the agent ─► `ratchet rule add` ─► proven on the fix commit 
 - [Use cases](#use-cases)
 - [Commands](#commands)
 - [Configuration](#configuration)
+- Guides: [CI for your project](docs/CI.md), [tests that catch more](docs/TESTING.md)
 - [Code review](#code-review)
 - [Experimental parts](#experimental-parts)
 - [What it writes and how to remove it](#what-it-writes-and-how-to-remove-it)
@@ -56,7 +57,7 @@ Ratchet is an independent project. It shares no code or prompts with its sources
 | Ban what needs nuance to use well; imports across a boundary are forbidden | `ban-api`, `ban-pattern` and `ban-import` rules on the files you name |
 | Comments become excuses | The escape-hatch ceiling, and `ratchet comments --mode excuses` |
 | A check's message names the root cause and the fix | A rule without its fix text is refused; every finding reaches the agent with its fix |
-| Runtime verification: run the code | The mapped test and the drivers run before a turn may end |
+| Runtime verification: run the code | The mapped test and the drivers run before a turn may end; the reusable CI gate runs the project's lint, type-check and tests on every merge; `ratchet mutate` shows whether a test would catch a break, and the model-check helper runs every event sequence of a small state machine |
 | Review the verification artifacts, not the diff | Every checked turn leaves a verification record |
 | Judge by outcomes: reverts and the fixes that follow | `ratchet measure` reads fixes, fixes of a fix and reverts from git history |
 
@@ -72,11 +73,15 @@ Ratchet is an independent project. It shares no code or prompts with its sources
 |---|---|
 | **After each edit** | Checks that the file parses, that it breaks none of the project's rules, and that no escape hatch was added (`as unknown as`, `@ts-ignore` and the like). |
 | **Before the turn ends** | Runs the same checks on every file the session changed, then the project's own commands: checks, the one test mapped to those files, and drivers that run the real thing. Writes a verification record. |
+| **Built-in checks** | `builtin:lf` fails a changed file git would store with carriage returns. `builtin:protected` fails any change to recorded references (fixtures, golden files, snapshots) until you allow a re-record with `ratchet allow-protected`. `builtin:generated` checks that committed build output still matches its sources, building into a temporary folder. `ratchet init` offers them. |
+| **Background agents** | Ratchet records which files each subagent wrote. While one is still running, a failure only in its files is reported as pending, not held against your turn; it holds once the agent stops. |
 | **Advise or enforce** | In `advise` mode it reports. In `enforce` mode a failure the session caused holds the turn, at most twice. A failure that was already there never holds it. |
 | **Rules from corrections** | `ratchet rule add` bans a pattern, an import or an API in the files you name. A rule can be proven on the commit that fixed the fault. A census of the same fault elsewhere is kept as a backlog that may only fall. |
 | **Escape-hatch ceiling** | Counts the hatches in the repository and refuses a rise. |
 | **Autonomous loop (optional)** | After each checked turn it can write a trial rule from a fix commit, map a new test once it has passed alone, lower backlogs, and promote or retire its own rules. It only tightens and tells the next session what it did. |
 | **Code review** | `ratchet review` and `review-work`: specialists look for candidates, a program checks every quotation, verifiers decide with cited code, and a confirmed finding can be reproduced as a failing test. |
+| **CI for the project** | Reusable GitHub workflows: a gate (lint, type-check, test matrix) and a release (refuses a tag that did not pass `ci-ok`, builds per system, checksums, attestation). `ratchet ci init` writes the caller and a ruleset file that requires `ci-ok`, and prints the command you run to apply it. See [docs/CI.md](docs/CI.md). |
+| **Tests that bite** | `src/modelcheck.ts` runs every event sequence of a small state machine up to a depth; `ratchet mutate` breaks a file on purpose in a temporary copy and lists the breaks your test misses. See [docs/TESTING.md](docs/TESTING.md). |
 | **Measurement** | `measure`, `level`, `lessons`, `dashboard` and `backtest` report what the harness changed, from git history and its own records. |
 
 ## See it in one minute
@@ -241,9 +246,10 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 | `install` / `uninstall` | Add or remove the seven hook entries and the installed copy's slash command. |
 | `on` / `off` `[--project <dir>] [--mode advise\|enforce]` | The global switch, or one project's own switch. |
 | `default --project <dir>` | Drop a project's own switch so it follows the global one. |
-| `status` | Whether it is on here, the mode, and what is checked. |
+| `status [--brief]` | Whether it is on here, the mode, and what is checked. `--brief` adds the house rules to paste into a subagent's brief. |
 | `init` `[--in-repo] [--force] [--keep-own] [--pair-tests]` | Write a project config from what is found. |
 | `rule add` / `rule list` / `rule remove` | Manage rules: `ban-pattern`, `ban-import`, `ban-api`. |
+| `allow-protected --path <glob> [--minutes 30]` | Allow a re-record of protected files for a while; logged. The person's call. |
 | `census [--tighten]` | Each rule's count now against its baseline. |
 | `hatches [--set-ceiling]` | Escape hatches against the stored ceiling. |
 | `comments --mode off\|excuses\|ban` | The no-comments constraint. |
@@ -252,6 +258,8 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 | `baseline [--minutes 10]` | Run the mapped commands once on the tree as it is. |
 | `auto [--on\|--off] [--guards] [--backlog]` | One pass of the autonomous loop, or switch it. |
 | `limits`, `level`, `lessons`, `measure`, `dashboard`, `backtest`, `guides` | Reports and the loop's own limits. |
+| `ci init` / `ci codeql` / `ci blame-ignore --commit <sha>` | Write the project's CI caller and ruleset file, a CodeQL workflow, or a blame-ignore entry. Nothing is pushed and no setting is changed. |
+| `mutate --file <path> --test "<cmd>"` | Break the file on purpose in a temporary copy and report which breaks the test misses. |
 | `review`, `review-commit`, `review-work` | Code review (see below). |
 | `bench`, `guard`, `retire`, `effort`, `vault` | The review benchmark, guards from reproduced findings, and the notes vault. |
 | `launchgate`, `gates`, `decisions`, `drivers`, `tokens` | Small tools: a machine-load gate before starting workers, proof gates, a decision-log check, driver checks, token use of a session. |
@@ -263,7 +271,11 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 ```jsonc
 {
   // run before the turn ends; {files} is replaced by the changed files that match `when`
-  "checks":  [{ "name": "types", "command": "npm run check-types", "when": ["src/**/*.ts"] }],
+  "checks":  [{ "name": "types", "command": "npm run check-types", "when": ["src/**/*.ts"] },
+              // built-in checks run inside Ratchet
+              { "name": "lf", "command": "builtin:lf", "when": ["**/*.ts"] },
+              { "name": "fixtures", "command": "builtin:protected", "when": ["test/fixtures/**"] },
+              { "name": "web-js", "command": "builtin:generated", "when": ["web/src/**"], "build": "cd web && npx --no-install tsc -p . --outDir {out}", "into": "static" }],
   // the ONE relevant test for a set of files, never a whole suite
   "tests":   [{ "name": "parse", "command": "node --test test/parse.test.ts", "when": ["src/parse.ts"] }],
   // commands that run the real thing

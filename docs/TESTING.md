@@ -25,7 +25,7 @@ assertExplored(r);
 - **On a failure,** events are dropped one at a time while the sequence still fails the same way, and what is left is what you see: `right -> right -> wrong -> right -> open`. Report the counterexample, then fix the code. Do not commit a failing test.
 - **The key must cover the whole state.** A key made only from the model's state treats two different system states as one, and a bug in the difference is never explored. When in doubt, leave `key` out: the run is slower, not wrong.
 - **Reachability counts.** A pass that never reached a named state proves nothing, so `assertExplored` fails in that case. It also fails when the run hit its step limit (`maxSteps`, 50 million by default).
-- **Prove that the check bites.** Break a copy of the code on purpose (a `<` for a `<=`, a dropped guard) and see the check fail. In trio, 21 of 21 deliberate breaks of the hold logic were caught before the check was trusted.
+- **Prove that the check bites.** Break a copy of the code on purpose (a `<` for a `<=`, a dropped guard) and see the check fail. In trio, 21 of 21 deliberate breaks of the hold logic were caught before the check was trusted. `ratchet mutate --file src/x.ts --test "node --test test/x.test.ts"` does this for you: it breaks the file in a temporary copy, never your working tree, runs the test once per break, and lists each break the test missed. Exit 0 means every break was caught.
 
 ## Recorded fixtures as the oracle
 

@@ -1,6 +1,6 @@
 # CI for your project
 
-Ratchet ships two reusable GitHub Actions workflows. A project calls them from a short workflow of its own instead of copying them. They check the same things on every merge that Ratchet checks at every agent turn.
+Ratchet ships two reusable GitHub Actions workflows. A project calls them from a short workflow of its own instead of copying them. They run the project's own lint, type-check and tests on every merge; Ratchet's rules and built-in checks still run at each agent turn.
 
 Pin each call to a commit of this repository, never to a branch, and keep the release tag next to it as a comment. Ratchet never moves its own release tags.
 

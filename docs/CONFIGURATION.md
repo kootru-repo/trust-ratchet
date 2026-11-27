@@ -20,6 +20,22 @@ Each entry:
 - `tests` name the one relevant test for a set of files. Never put a whole suite here.
 - `drivers` run the real thing (start the CLI, build the page).
 
+## Built-in checks
+
+A check whose `command` is `builtin:<name>` runs inside Ratchet, on the changed files that match its `when`. Each line it reports names one of them.
+
+| Command | What it does | Extra fields |
+|---|---|---|
+| `builtin:lf` | Fails a file git would store with carriage returns. It reads `.gitattributes`, `core.autocrlf` and the form already stored, and skips binaries, `eol=crlf` files and links. | none |
+| `builtin:protected` | Fails any change in the session to the files under `when` (recorded fixtures, golden files, snapshots), committed or not, and says how to put each back. `ratchet allow-protected --path <glob> --minutes <n>` allows a re-record for a while; every allowance given and used is logged in `allowances.log`. | none |
+| `builtin:generated` | Builds into a temporary folder and compares every built file with the committed one under `into`, as LF for text and as bytes otherwise. Committed files of a kind the build makes but no longer builds are reported too. A build that changes the working tree is reported, and one that runs out of time is stopped with every process it started. Drift older than the session does not hold the turn until the check has passed once. | `build` (must contain `{out}`), `into` |
+
+`ratchet init` offers `builtin:lf` when no covered file is stored with CR today, and `builtin:protected` for folders named `fixtures`, `__snapshots__`, `golden` and `testdata`. `builtin:generated` is configured by hand.
+
+## Background agents
+
+Ratchet keeps a log of which files each subagent's edits wrote (the SubagentStart and SubagentStop hooks). While an agent of the session is still running, a blocking failure that names a file that agent wrote, and none of the session's own, is reported as pending instead of holding the turn. It holds if it is still pending at the next turn end with nothing changed, and every failure holds as before once the agent stops. Writes made through a shell count as the session's own. Nothing to configure.
+
 ## Limits
 
 | Key | Default | Meaning |

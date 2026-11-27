@@ -9,6 +9,11 @@ src/
     install.ts        copies the harness, edits the settings file, writes the slash command
     hook.ts           what each hook event does
     turn.ts           the turn-end check: syntax, rules, hatches, then checks, tests, drivers
+    checks.ts         finding checks: tsconfig folders, package scripts at any depth, pyproject, built-ins
+    builtins.ts, protected.ts, generated.ts   the built-in checks (builtin:lf, builtin:protected, builtin:generated)
+    runtree.ts        runs a command and stops every process it started at its deadline
+    agents.ts         the subagent log and the pending rule while an agent runs
+    ciinit.ts, brief.ts   ratchet ci init / codeql / blame-ignore, and status --brief
     rules.ts          rule kinds, matching, census
     state.ts          where everything is kept; the switch; the project config type
     auto.ts           the autonomous loop: propose, prove, map, promote, retire
@@ -19,8 +24,11 @@ src/
   bench.ts, guard.ts  the review benchmark and guards from reproduced findings
   vault.ts            findings as notes in an Obsidian vault
   subscription.ts     strips API key variables from every child process
+  modelcheck.ts       bounded exhaustive model checks for small state machines (for projects' tests)
+  mutate.ts           ratchet mutate: deliberate breaks in a temporary copy
   swarm/              EXPERIMENTAL: workers in worktrees, verifier, guard, launch gate, ladder
 test/                 node:test files, one per module
+.github/workflows/    gate.yml and release.yml, the reusable CI workflows projects call
 ```
 
 ## Principles the code holds to
