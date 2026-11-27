@@ -571,7 +571,10 @@ export const harnessCli = (argv: string[], source: string): number => {
       }
     }
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, callerWorkflow({ plan, sha, tag }));
+    // A project that keeps its Ratchet config in the tree gets Ratchet's checks in CI as well.
+    const ratchetCheck = fs.existsSync(path.join(root, ".ratchet", "config.json"));
+    fs.writeFileSync(target, callerWorkflow({ plan, sha, tag, ratchetCheck }));
+    if (ratchetCheck) say("The gate also runs Ratchet's checks on every change (the config in .ratchet/), with Ratchet installed from the same commit.");
     const rulesetFile = path.join(projectDir(root), "ruleset-ci-ok.json");
     writeText(rulesetFile, rulesetJson());
     say(`Wrote ${target}: the gate runs ${[plan.lint, plan.check, plan.test].filter(Boolean).join(", ")} in ${plan.workingDirectory} on ${plan.os.join(", ")}, pinned to ${sha.slice(0, 12)} (${tag}).`);

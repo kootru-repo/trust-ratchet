@@ -40,7 +40,7 @@ on:
         type: string
         default: ""
       ratchet-package:
-        description: Where to install Ratchet from; empty means this workflow's own commit of kootru-repo/trust-ratchet
+        description: Where to install Ratchet from, for example github:kootru-repo/trust-ratchet#<the commit this gate is pinned to>. Required with ratchet-check where the runner does not give a called workflow its own commit
         type: string
         default: ""
 permissions:

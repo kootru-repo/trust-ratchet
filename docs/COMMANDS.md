@@ -3,7 +3,7 @@
 This is the output of `ratchet help`. Every command takes `--project <dir>` where shown; the default is the current folder. `ratchet --version` prints the version.
 
 ```
-Ratchet 0.2.1: a trust harness for AI coding agents.
+Ratchet 0.2.2: a trust harness for AI coding agents.
 
 Start here:
   ratchet install                              add the hooks to Claude Code (your settings file is backed up first)

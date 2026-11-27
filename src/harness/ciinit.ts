@@ -32,8 +32,11 @@ export const planCi = ({ packages, nodeVersion, os }: { packages: { dir: string;
 
 const yamlString = (s: string): string => JSON.stringify(s);
 
-/** Pure: the caller workflow. The gate is pinned to a commit; the tag it came from is a comment. */
-export const callerWorkflow = ({ plan, sha, tag }: { plan: CiPlan; sha: string; tag: string }): string =>
+/**
+ * Pure: the caller workflow. The gate is pinned to a commit; the tag it came from is a comment. With `ratchetCheck`, the
+ * gate also runs Ratchet's checks, installing Ratchet from the same commit: a called workflow cannot read its own commit.
+ */
+export const callerWorkflow = ({ plan, sha, tag, ratchetCheck = false }: { plan: CiPlan; sha: string; tag: string; ratchetCheck?: boolean }): string =>
   [
     "name: CI",
     "# Written by `ratchet ci init`. The checks run in Ratchet's reusable gate, pinned to one commit;",
@@ -55,6 +58,7 @@ export const callerWorkflow = ({ plan, sha, tag }: { plan: CiPlan; sha: string; 
     `      lint-command: ${yamlString(plan.lint)}`,
     `      check-command: ${yamlString(plan.check)}`,
     `      test-command: ${yamlString(plan.test)}`,
+    ...(ratchetCheck ? ["      ratchet-check: true", `      ratchet-package: ${yamlString(`github:${GATE_REPO}#${sha}`)}`] : []),
     "  ci-ok:",
     "    if: always()",
     "    needs: [gate]",

@@ -37,6 +37,7 @@ Ratchet's turn-end checks run only when an agent ends a turn. A change made by h
     with:
       ratchet-check: true
       ratchet-checks: lf-line-endings,fixtures-unchanged   # empty runs all of the project's checks
+      ratchet-package: github:kootru-repo/trust-ratchet#<the commit the gate is pinned to>
 ```
 
 The job installs the project with `install-command` in `working-directory`, so checks can use its tools. It then runs `ratchet check --base <ref>` on everything changed since a base. The base is the first of these that exists: the pull request's base, the merge queue's base, the commit before the push, where the branch left the default branch, or the commit before. A repository's first commit has nothing to compare with. The check applies:
@@ -45,7 +46,7 @@ The job installs the project with `install-command` in `working-directory`, so c
 
 Every finding fails, and so does a check that could not run. Tests and drivers stay with your own CI.
 
-It reads the project config from `.ratchet/` in the repository (`config.json`, `rules.json`), so the config CI uses is the one in the tree. By default it installs Ratchet from the same commit the gate is pinned to.
+It reads the project config from `.ratchet/` in the repository (`config.json`, `rules.json`), so the config CI uses is the one in the tree. Name the Ratchet to install with `ratchet-package`, pinned to the same commit as the gate: GitHub's runners may not give a called workflow its own commit (they did not when this was written), and then the job stops and says so rather than install an unpinned Ratchet. `ratchet ci init` writes both for a project that has `.ratchet/config.json`.
 
 A deliberate re-record of protected files passes when a commit in the range carries a git trailer such as `Ratchet-Allow-Protected: test/fixtures/**` in its trailer block (the last paragraph, like `Co-Authored-By:`), so the permission is in the history. It covers the whole range of the push or pull request. Deleting or renaming a protected file counts as changing it.
 

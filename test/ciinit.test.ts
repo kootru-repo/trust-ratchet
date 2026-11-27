@@ -105,3 +105,20 @@ test("review of B1: ls-remote lines, Node versions, other lock files, the note f
   assert.equal(said(() => harnessCli(["ci", "init", "--project", repo, "--ref", SHA, "--tag", "v9.9.9", "--skip-ref-check", "--force"], SOURCE)).value, 0);
   assert.match(fs.readFileSync(path.join(repo, ".github/workflows/ci.yml"), "utf8"), /# v9.9.9$/m);
 });
+
+test("with the Ratchet config in the tree, the caller also runs Ratchet's checks, installed from the gate's commit", () => {
+  const plan = planCi({ packages: [{ dir: ".", scripts: { test: "node --test" }, hasLock: true }] });
+  assert.ok(plan);
+  assert.doesNotMatch(callerWorkflow({ plan, sha: SHA, tag: "v1" }), /ratchet-check/);
+  const yml = callerWorkflow({ plan, sha: SHA, tag: "v1", ratchetCheck: true });
+  assert.match(yml, /ratchet-check: true\n {6}ratchet-package: "github:kootru-repo\/trust-ratchet#0123456789abcdef0123456789abcdef01234567"/);
+  process.env.RATCHET_HOME = tmp("home");
+  const repo = tmp("ci3");
+  gitIn(repo, "init", "-q", "-b", "main");
+  put(repo, "package.json", JSON.stringify({ scripts: { test: "node --test" } }));
+  put(repo, ".ratchet/config.json", "{}");
+  gitIn(repo, "add", "-A");
+  gitIn(repo, "commit", "-q", "-m", "base");
+  assert.match(said(() => harnessCli(["ci", "init", "--project", repo, "--ref", SHA, "--skip-ref-check"], SOURCE)).text, /also runs Ratchet's checks/);
+  assert.match(fs.readFileSync(path.join(repo, ".github/workflows/ci.yml"), "utf8"), /ratchet-package: "github:kootru-repo\/trust-ratchet#0123456789abcdef/);
+});

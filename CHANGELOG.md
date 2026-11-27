@@ -2,6 +2,11 @@
 
 Notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.2] - 2026-11-27
+
+### Fixed
+- The gate's `ratchet` job cannot read its own commit inside a called workflow, so it stopped. Callers now name it with `ratchet-package`, and `ratchet ci init` writes that, pinned to the gate's commit, for a project with `.ratchet/config.json`. [docs/CI.md](docs/CI.md) says so.
+
 ## [0.2.1] - 2026-11-27
 
 ### Added
