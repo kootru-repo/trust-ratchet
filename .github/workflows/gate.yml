@@ -1,0 +1,75 @@
+name: gate
+# Reusable CI gate: lint once, then type-check and test on each system asked for.
+# A project calls it from its own workflow, pinned to a commit of this repository, and keeps its own
+# ci-ok job (a job inside a reusable workflow is named "<caller job> / <job>", so a ruleset never sees it).
+# `ratchet ci init` writes that caller for you.
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Folder of the package to check, relative to the repository root
+        type: string
+        default: "."
+      node-version:
+        type: string
+        default: "22"
+      os-matrix:
+        description: JSON list of runners, for example ["ubuntu-latest","windows-latest"]
+        type: string
+        default: '["ubuntu-latest"]'
+      install-command:
+        type: string
+        default: npm ci
+      lint-command:
+        description: Runs once on Linux; empty to skip
+        type: string
+        default: ""
+      check-command:
+        description: Type check or other static check, on every system; empty to skip
+        type: string
+        default: ""
+      test-command:
+        type: string
+        default: npm test
+permissions:
+  contents: read
+jobs:
+  lint:
+    if: inputs.lint-command != ''
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - run: ${{ inputs.install-command }}
+      - run: ${{ inputs.lint-command }}
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.os-matrix) }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - run: git config --global core.autocrlf false
+        working-directory: .
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - run: ${{ inputs.install-command }}
+      - if: inputs.check-command != ''
+        run: ${{ inputs.check-command }}
+      - run: ${{ inputs.test-command }}

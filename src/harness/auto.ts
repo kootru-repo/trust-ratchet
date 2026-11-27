@@ -8,7 +8,7 @@ import { isFixSubject } from "../history.ts";
 import { census, countHatches } from "./cli.ts";
 import { baselineStep, guardVerdicts, offUnseen, prevention, readBaseline, renderBaseline, renderPrevention, selfCheck } from "./insight.ts";
 import { levelOf, renderLevel, SCHEME, type Level, type LevelFacts } from "./level.ts";
-import { checkCandidates, hasTypescriptAt, readScripts, tryCheck } from "./checks.ts";
+import { checkCandidates, hasTypescriptAt, readPackages, readPyprojects, readScripts, tryCheck } from "./checks.ts";
 import { dropCorrection, fixFromCorrection, pendingCorrections } from "./corrections.ts";
 import { logCorrection, logLessons } from "./lessons.ts";
 import { featureMap, outcomes, parseLog } from "./outcomes.ts";
@@ -728,7 +728,7 @@ export const runAuto = ({ root, maxCommits = 20, maxTests = 3, backlog = false, 
     // only when it ran clean and left the working tree as it was; one that did not is tried again when the file
     // that suggested it changes.
     const triedChecks = state.triedChecks ?? {};
-    for (const cand of checkCandidates({ files, scripts: readScripts(root), hasTypescript: hasTypescriptAt(root), config: readConfig(root), exclude })) {
+    for (const cand of checkCandidates({ files, scripts: readScripts(root), packages: readPackages(root, files, exclude), pyprojects: readPyprojects(root, files, exclude), hasTypescript: hasTypescriptAt(root), config: readConfig(root), exclude })) {
       const stamp = stampOf(cand.from) ?? "";
       if (triedChecks[cand.name] === stamp) continue;
       if (memory() >= 90) break;

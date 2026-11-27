@@ -2,6 +2,40 @@
 
 Notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-11-27
+
+Run `ratchet install` again after updating: it brings the new built-in checks to the installed copy the hooks run, and adds two hook entries (seven in all).
+
+### Added
+- Built-in checks, which Ratchet runs itself instead of a shell command:
+  - `builtin:lf` fails a changed file that git would store with carriage returns. It reads attributes and `core.autocrlf`, and skips binaries, `eol=crlf` files and links.
+  - `builtin:protected` fails any change in the session to recorded references such as fixtures, golden files or snapshots, committed or not. A re-record needs `ratchet allow-protected --path <glob> --minutes <n>`, which gives a timed allowance and logs it.
+  - `builtin:generated` checks that committed build output still matches its sources. It builds into a temporary folder, never into the working tree.
+- `ratchet init` finds more checks and tries each one once:
+  - lint, check, type-check and format-check scripts in nested packages;
+  - ruff and mypy from `pyproject.toml`;
+  - the LF check;
+  - protected checks for `fixtures`, `__snapshots__`, `golden` and `testdata` folders.
+- Subagents:
+  - Ratchet records which files a subagent wrote, with new SubagentStart and SubagentStop hooks.
+  - While a background agent is still running, a failure in the agent's own files is reported as pending instead of holding the parent's turn. It holds once the agent stops, or if it is still pending with nothing changed.
+- CI for any project ([docs/CI.md](docs/CI.md)):
+  - reusable workflows `gate.yml` (lint, test matrix) and `release.yml` (refuses a tag that did not pass `ci-ok`, builds per system, checks the version, checksums, attestation, verified downloads, dry-run rehearsal);
+  - `ratchet ci init`, which writes the caller and the ruleset that requires `ci-ok`, and checks that the gate is at the commit it pins;
+  - `ratchet ci codeql` and `ratchet ci blame-ignore`.
+- Tests that catch more ([docs/TESTING.md](docs/TESTING.md)):
+  - `src/modelcheck.ts`, bounded exhaustive model checks with shrinking and reachability;
+  - `ratchet mutate`, which breaks a file on purpose in a temporary copy and lists the breaks the test misses.
+- `ratchet status --brief`: house rules to paste into a subagent's brief.
+
+### Changed
+- `ratchet rule add` refuses a pattern that must match a carriage return, since rules see lines already split, and `rule list` marks stored ones.
+- A check-only formatter script (`biome format`, `--check`) and output redirects such as `2>&1` no longer stop a script from being offered as a check.
+- Every action in the shipped workflows is pinned to a commit.
+
+### Fixed
+- A build that runs out of time is stopped with every process it started, not only its shell.
+
 ## [0.1.1] - 2026-11-22
 
 ### Added

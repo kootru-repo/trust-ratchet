@@ -3,7 +3,7 @@
 This is the output of `ratchet help`. Every command takes `--project <dir>` where shown; the default is the current folder. `ratchet --version` prints the version.
 
 ```
-Ratchet 0.1.1: a trust harness for AI coding agents.
+Ratchet 0.2.0: a trust harness for AI coding agents.
 
 Start here:
   ratchet install                              add the hooks to Claude Code (your settings file is backed up first)
@@ -17,6 +17,7 @@ Start here:
 Guide: https://github.com/kootru-repo/trust-ratchet#readme
 
 Every command:
+ratchet mutate --file <path> --test "<command>" [--max 20] [--timeout 120] [--project <dir>]   break the file on purpose in a temporary copy and report which breaks the test misses (exit 0 all caught, 1 missed, 2 usage, 3 test fails unbroken, 4 wait, 5 nothing to try)
 ratchet launchgate [--workers <n>] [--max-workers <n>] [--max-ram <pct>]   (exit 0 start, 1 wait)
 ratchet gates [--project <dir>] [--file <gates.json>]   (exit 0 when row 18 allows auto-merge, 1 when rows are open)
 ratchet decisions <log.md> [--repo <dir>] [--previous <file>]
@@ -42,7 +43,7 @@ ratchet review-work [--project <dir>] [--since HEAD] [--max-files 3] [--out repo
 ratchet install | uninstall                         add or remove the five hook entries in the Claude Code settings (switch state is kept)
 ratchet on | off [--project <dir>] [--mode advise|enforce]   the global switch, or one project's own switch
 ratchet default --project <dir>                       drop a project's own switch, so it follows the global one
-ratchet status [--project <dir>]
+ratchet status [--project <dir>] [--brief]   --brief adds the house rules to paste into a subagent's brief
 ratchet init [--project <dir>] [--in-repo] [--force] [--keep-own]  write a project config from what is found (no whole test suite, ever); --keep-own keeps the checks, tests and drivers written by hand, and the limits set by hand
 ratchet init --pair-tests [--py-test "python -B {test}"] [--ts-test "<cmd> {test}"] [--exclude <glob>]... [--project <dir>]
                                                       map each test that sits beside the file it tests to that file
@@ -68,6 +69,10 @@ ratchet rule list | rule remove --id <id> [--project <dir>]
 ratchet census [--project <dir>] [--tighten]          every rule: count now against its baseline; --tighten lowers a backlog that fell
 ratchet hatches [--project <dir>] [--set-ceiling]     escape hatches in the repository against the stored ceiling
 ratchet measure [--project <dir>] [--last 200]        outcomes from git history and the harness's own records
+ratchet ci codeql [--project <dir>] [--force]   write .github/workflows/codeql.yml (JavaScript and TypeScript), pinned; not part of ci-ok
+ratchet ci blame-ignore --commit <sha> [--note <text>] [--project <dir>]   list a layout-only commit (a formatter run) in .git-blame-ignore-revs
+ratchet ci init [--project <dir>] [--os ubuntu-latest,windows-latest] [--ref <commit>] [--tag <name>] [--skip-ref-check] [--force]   write .github/workflows/ci.yml calling the reusable gate; prints the ruleset command, pushes nothing
+ratchet allow-protected --path <glob> [--minutes 30] [--project <dir>]   allow changes to protected files (builtin:protected) for a while, logged
 ratchet must-not add --files <glob>... --pattern <regex on the line> --reason <why it is fine> [--project <dir>]
 ratchet must-not from-vault --vault <dir> --review <review .json>... [--project <dir>]   false-alarm rulings become must-not-flag cases
 ratchet must-not list [--project <dir>]

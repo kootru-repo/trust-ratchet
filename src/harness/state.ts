@@ -11,7 +11,7 @@ export type Switch = { enabled?: boolean; mode?: Mode; /** When the switch was l
 /** `projects` is keyed by the normalised root, so one small file answers "is the harness on here" with no git call. */
 export type State = { enabled: boolean; mode: Mode; debug?: boolean; since?: string; projects: Record<string, Switch> };
 
-export type CheckCmd = { name: string; command: string; when?: string[]; onlyChanged?: boolean; timeoutS?: number; /** "auto": mapped by the autonomous loop, which may unmap it again. */ origin?: "auto"; /** "trial": a failure is reported and never holds the turn. */ stage?: "trial" };
+export type CheckCmd = { name: string; command: string; when?: string[]; onlyChanged?: boolean; timeoutS?: number; /** "auto": mapped by the autonomous loop, which may unmap it again. */ origin?: "auto"; /** "trial": a failure is reported and never holds the turn. */ stage?: "trial"; /** builtin:generated: the build, with {out} for the folder it writes into. */ build?: string; /** builtin:generated: the committed folder its output must match. */ into?: string };
 import type { CommentsConfig } from "./comments.ts";
 
 export type ProjectConfig = {

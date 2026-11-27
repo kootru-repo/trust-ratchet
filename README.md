@@ -176,7 +176,7 @@ flowchart LR
   E --> F[autonomous loop: learn a rule, map a test, tighten]
 ```
 
-Five hook entries are installed: `SessionStart`, `PreToolUse` and `PostToolUse` on file edits, `Stop`, and `UserPromptSubmit`. Each starts the same small program, which leaves at once when the switch is off for the project.
+Seven hook entries are installed: `SessionStart`, `PreToolUse` and `PostToolUse` on file edits, `Stop`, `UserPromptSubmit`, and `SubagentStart` and `SubagentStop` (which files a subagent changed). Each starts the same small program, which leaves at once when the switch is off for the project.
 
 **The three layers of a turn-end check**
 
@@ -238,7 +238,7 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 
 | Command | What it does |
 |---|---|
-| `install` / `uninstall` | Add or remove the five hook entries and the installed copy's slash command. |
+| `install` / `uninstall` | Add or remove the seven hook entries and the installed copy's slash command. |
 | `on` / `off` `[--project <dir>] [--mode advise\|enforce]` | The global switch, or one project's own switch. |
 | `default --project <dir>` | Drop a project's own switch so it follows the global one. |
 | `status` | Whether it is on here, the mode, and what is checked. |
@@ -325,12 +325,12 @@ Their interfaces will change.
 `install` does exactly this:
 
 - copies the harness to `~/.claude/ratchet/app` and proves the copy starts;
-- adds five hook entries to `~/.claude/settings.json`, after a backup to `~/.claude/ratchet/backup/`, leaving every other entry and the file's formatting as they were;
+- adds seven hook entries to `~/.claude/settings.json`, after a backup to `~/.claude/ratchet/backup/`, leaving every other entry and the file's formatting as they were;
 - writes the slash command `~/.claude/commands/ratchet.md` and a Windows launcher, `~/.claude/ratchet/ratchet.cmd`.
 
 Installed from the npm package, the `ratchet` command also keeps a copy of its source under `~/.claude/ratchet/pkg/`, because Node does not run TypeScript from inside `node_modules`.
 
-It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall` removes exactly the five entries and the slash command; rules and records stay until you delete `~/.claude/ratchet`.
+It installs no git hook, commits nothing, and sends nothing anywhere. `uninstall` removes exactly the seven entries and the slash command; rules and records stay until you delete `~/.claude/ratchet`.
 
 ## FAQ
 

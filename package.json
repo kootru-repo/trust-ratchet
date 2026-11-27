@@ -1,6 +1,6 @@
 {
   "name": "trust-ratchet",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A trust harness for AI coding agents: deterministic checks after every edit and before every turn ends, corrections that become rules, and code review that separates finding bugs from verifying them.",
   "license": "AGPL-3.0-only",
   "type": "module",

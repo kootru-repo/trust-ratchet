@@ -21,6 +21,9 @@ export const EVENTS: { event: string; matcher?: string; timeout: number }[] = [
   { event: "Stop", timeout: STOP_TIMEOUT_S },
   // Reads one prompt, may copy a few files, prints nothing. A short limit: a prompt must never wait on the harness.
   { event: "UserPromptSubmit", timeout: 10 },
+  // T1: which files a subagent changed, so a turn end can tell its half-done work from the session's own.
+  { event: "SubagentStart", timeout: 30 },
+  { event: "SubagentStop", timeout: 30 },
 ];
 
 const isOurs = (h: HookCmd): boolean => Array.isArray(h.args) && h.args.includes(MARK);

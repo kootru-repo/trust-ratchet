@@ -1,0 +1,9 @@
+{
+  "name": "ci-caller-example",
+  "private": true,
+  "scripts": {
+    "lint": "node -e \"process.exit(0)\"",
+    "check": "node --check add.mjs",
+    "test": "node --test"
+  }
+}

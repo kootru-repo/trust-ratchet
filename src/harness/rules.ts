@@ -60,6 +60,58 @@ export const globToRegExp = (glob: string): RegExp => {
 export const matchesAny = (file: string, globs: string[]): boolean =>
   globs.some((g) => !g.startsWith("!") && globToRegExp(g).test(file)) && !globs.some((g) => g.startsWith("!") && globToRegExp(g.slice(1)).test(file));
 
+const CR_ESCAPE = /^\\(r|x0[dD]|u000[dD]|c[mM]|0?15(?![0-9]))/;
+const OPTIONAL = /^(\?|\*|\{0[,}])/;
+
+const LF_ESCAPE = /^\\(n|x0[aA]|u000[aA]|c[jJ]|0?12(?![0-9]))/;
+
+/**
+ * Pure: must every match of this pattern (compiled with no flags) contain a carriage return? A CR is the character
+ * itself or an escape (\r, \x0d, \u000d, \cM, \015). Only a plain case counts, so a working rule is never refused:
+ * a CR, or a class of nothing but CR and LF ([\r\n]), at the top level of the pattern, not followed by ?, * or {0,.
+ * A CR in a group, in a class with other members ([ \t\r]) or a negated one, or in a pattern with a top-level |
+ * does not count. Backslashes are read in pairs, so \\r is a backslash and an r.
+ */
+export const matchesCarriageReturn = (pattern: string): boolean => {
+  let cls: { negated: boolean; cr: boolean; other: boolean } | null = null;
+  let depth = 0;
+  let alternation = false;
+  let required = false;
+  let i = 0;
+  while (i < pattern.length) {
+    const ch = pattern[i];
+    const rest = pattern.slice(i);
+    if (cls === null && ch === "[") {
+      cls = { negated: pattern[i + 1] === "^", cr: false, other: false };
+      i += cls.negated ? 2 : 1;
+      continue;
+    }
+    if (cls !== null && ch === "]") {
+      if (cls.cr && !cls.other && !cls.negated && depth === 0 && !OPTIONAL.test(pattern.slice(i + 1))) required = true;
+      cls = null;
+      i += 1;
+      continue;
+    }
+    if (cls === null && (ch === "(" || ch === ")" || ch === "|")) {
+      if (ch === "(") depth += 1;
+      else if (ch === ")") depth = Math.max(0, depth - 1);
+      else if (depth === 0) alternation = true;
+      i += 1;
+      continue;
+    }
+    const cr = ch === "\\" ? CR_ESCAPE.exec(rest) : null;
+    const lf = ch === "\\" && cr === null ? LF_ESCAPE.exec(rest) : null;
+    const len = cr ? cr[0].length : lf ? lf[0].length : ch === "\\" ? 2 : 1;
+    const isCr = cr !== null || ch === "\r";
+    if (cls !== null) {
+      if (isCr) cls.cr = true;
+      else if (lf === null && ch !== "\n") cls.other = true;
+    } else if (isCr && depth === 0 && !OPTIONAL.test(pattern.slice(i + len))) required = true;
+    i += len;
+  }
+  return required && !alternation;
+};
+
 /** Pure: what is wrong with a rule as written, or nothing. */
 export const ruleProblems = (rule: Partial<Rule>): string[] => {
   const out: string[] = [];
@@ -72,6 +124,7 @@ export const ruleProblems = (rule: Partial<Rule>): string[] => {
     } catch (e) {
       out.push(`pattern is not a regular expression: ${(e as Error).message}`);
     }
+    if (matchesCarriageReturn(rule.pattern)) out.push("pattern looks for a carriage return, which a rule never sees: files are split into lines on \\r?\\n first. Use a check that reads bytes instead, such as the built-in LF line-endings check");
   }
   if (rule.scope !== undefined && rule.scope !== "line" && rule.scope !== "statement") out.push("scope must be line or statement");
   if (!rule.files || rule.files.length === 0) out.push("files is missing: name the globs the rule covers");

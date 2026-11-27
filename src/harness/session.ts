@@ -94,6 +94,17 @@ export const LEFTOVER = /(^|\/)(__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_c
 
 const statusNow = (root: string): string[] => statusPaths(git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])).filter((f) => !LEFTOVER.test(f));
 
+/** The files changed in the working tree now, each with a cheap stamp (size and modified time), not a hash. */
+export const changedStamps = (root: string): { file: string; hash: string }[] =>
+  statusNow(root).flatMap((file) => {
+    try {
+      const s = fs.statSync(path.join(root, file));
+      return s.isFile() ? [{ file, hash: `${s.size}:${s.mtimeMs}` }] : [];
+    } catch {
+      return [];
+    }
+  });
+
 export const takeBaseline = (root: string): Baseline => {
   const dirty: Baseline["dirty"] = {};
   for (const file of statusNow(root)) {
@@ -186,7 +197,7 @@ export const baselineHatches = (baseline: Baseline, file: string): string[] => {
 };
 
 /** What the harness remembers between the turns of one session, per repository. */
-export type TurnState = { lastKey?: string; lastBlocking?: number; holds: number; passed: string[]; /** Per command: the state of its own files when it last ran, and how that run ended. */ ran?: Record<string, { key: string; status: string }>; /** Commands left unrun at the last turn end, over the count or out of budget: a turn end with nothing changed runs them. */ pending?: number };
+export type TurnState = { lastKey?: string; lastBlocking?: number; holds: number; passed: string[]; /** Per command: the state of its own files when it last ran, and how that run ended. */ ran?: Record<string, { key: string; status: string }>; /** Commands left unrun at the last turn end, over the count or out of budget: a turn end with nothing changed runs them. */ pending?: number; /** A6: the state of the files when failures were last let go as pending for a running agent. */ pendingKey?: string };
 const turnFile = (sessionId: string, root: string): string => path.join(sessionDir(sessionId), `${slug(root)}.turn.json`);
 export const readTurn = (sessionId: string, root: string): TurnState => ({ holds: 0, passed: [], ...readJson<Partial<TurnState>>(turnFile(sessionId, root), {}) });
 export const writeTurn = (sessionId: string, root: string, turn: TurnState): void => writeJson(turnFile(sessionId, root), turn);

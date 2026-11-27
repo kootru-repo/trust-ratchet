@@ -1,0 +1,220 @@
+name: release
+# Reusable release: builds a tag's downloads on each system asked for and puts them on that tag's GitHub release.
+# It refuses a tag whose commit has no passing ci-ok check, checks that each build reports the tag's version, writes
+# SHA256SUMS.txt, attests the files (the signer is this workflow: verify with
+# `gh attestation verify <file> --repo <owner>/<repo> --signer-workflow kootru-repo/trust-ratchet/.github/workflows/release.yml`),
+# then downloads them again and checks the sums.
+#
+# The caller grants: contents: write, checks: read, id-token: write, attestations: write.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to release, for example v1.2.3
+        type: string
+        required: true
+      targets:
+        description: 'JSON list of {"os": runner, "asset": file name ending in .tar.gz or .zip}'
+        type: string
+        required: true
+      working-directory:
+        type: string
+        default: "."
+      node-version:
+        type: string
+        default: "22"
+      install-command:
+        type: string
+        default: npm ci
+      build-command:
+        description: Builds the files to ship into dist-dir
+        type: string
+        required: true
+      dist-dir:
+        description: Folder, relative to working-directory, whose contents are packed into each asset
+        type: string
+        required: true
+      version-command:
+        description: Prints the built program's version, run in working-directory; its output must contain the tag without "v". Empty to skip.
+        type: string
+        default: ""
+      rebuild-in-place:
+        description: If the release exists, replace its files (and say so in its notes) instead of failing
+        type: boolean
+        default: false
+      title:
+        type: string
+        default: ""
+      dry-run:
+        description: Build, check the version and write the checksums at the calling commit, but publish nothing and skip the CI and release checks (a rehearsal)
+        type: boolean
+        default: false
+permissions: {}
+jobs:
+  gate:
+    name: tag passed CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Resolve the tag to its commit (a rehearsal uses the calling commit)
+        id: sha
+        env:
+          DRY: ${{ inputs.dry-run }}
+        run: |
+          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9A-Za-z._-]+$'; then
+            echo "Tag ${TAG} is not a version tag (v followed by letters, digits, dots, dashes or underscores)."
+            exit 1
+          fi
+          # refs/tags/: a branch with the same name as the tag must not be what is released.
+          if [ "${DRY}" = "true" ]; then sha="${GITHUB_SHA}"; else sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/refs/tags/${TAG}" --jq .sha); fi
+          echo "Tag ${TAG} is commit ${sha}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+      - name: That commit passed ci-ok
+        if: ${{ !inputs.dry-run }}
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          ok=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?check_name=ci-ok" --jq '[.check_runs[] | select(.app.slug == "github-actions" and .conclusion == "success")] | length')
+          if [ "${ok}" = "0" ]; then
+            echo "Commit ${SHA} has no passing ci-ok check from GitHub Actions. Merge it through CI first."
+            exit 1
+          fi
+      - name: The release does not exist, unless it is rebuilt in place
+        if: ${{ !inputs.rebuild-in-place && !inputs.dry-run }}
+        run: |
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "Release ${TAG} exists. Make a new version, or call with rebuild-in-place: true."
+            exit 1
+          fi
+
+  build:
+    needs: gate
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(inputs.targets) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+    env:
+      TAG: ${{ inputs.tag }}
+      RELEASE_COMMIT: ${{ needs.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - run: ${{ inputs.install-command }}
+      - run: ${{ inputs.build-command }}
+      - name: The build reports this version
+        if: inputs.version-command != ''
+        env:
+          VERSION_COMMAND: ${{ inputs.version-command }}
+        run: |
+          shown=$(eval "${VERSION_COMMAND}")
+          echo "${shown}"
+          echo "${shown}" | grep -F "${TAG#v}"
+      - name: The build wrote files to ship
+        env:
+          DIST: ${{ inputs.dist-dir }}
+        run: |
+          if [ -z "$(find "${DIST}" -type f 2>/dev/null | head -1)" ]; then
+            echo "${DIST} holds no files after the build: nothing to ship."
+            exit 1
+          fi
+      - name: Pack (tar.gz)
+        if: endsWith(matrix.asset, '.tar.gz')
+        env:
+          DIST: ${{ inputs.dist-dir }}
+          ASSET: ${{ matrix.asset }}
+        run: tar -czf "${RUNNER_TEMP}/${ASSET}" -C "${DIST}" .
+      - name: Pack (zip)
+        if: endsWith(matrix.asset, '.zip')
+        shell: pwsh
+        env:
+          DIST: ${{ inputs.dist-dir }}
+          ASSET: ${{ matrix.asset }}
+        run: Compress-Archive -Path "$env:DIST/*" -DestinationPath "$env:RUNNER_TEMP/$env:ASSET"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ runner.temp }}/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [gate, build]
+    # Two runs for one tag must not interleave their uploads.
+    concurrency:
+      group: release-${{ github.repository }}-${{ inputs.tag }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag }}
+      TITLE: ${{ inputs.title }}
+      RELEASE_COMMIT: ${{ needs.gate.outputs.sha }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: out
+          merge-multiple: true
+      - name: Checksums
+        working-directory: out
+        run: |
+          sha256sum -b * > ../SHA256SUMS.txt
+          mv ../SHA256SUMS.txt .
+          cat SHA256SUMS.txt
+      - if: ${{ !inputs.dry-run }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: out/SHA256SUMS.txt
+      - name: Create the release, or replace its files when rebuilt in place
+        if: ${{ !inputs.dry-run }}
+        run: |
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "Release ${TAG} exists: replacing its files in place."
+            # A file this build does not make (an old name) would stay published from an older build: remove it.
+            gh release view "${TAG}" --json assets --jq '.assets[].name' | while IFS= read -r name; do
+              if [ ! -e "out/${name}" ]; then
+                echo "Removing ${name}: this build does not make it."
+                gh release delete-asset "${TAG}" "${name}" --yes
+              fi
+            done
+            gh release upload "${TAG}" out/* --clobber
+            notes=$(gh release view "${TAG}" --json body --jq .body)
+            printf '%s\n\nThe files of this release were rebuilt from commit %s on %s.\n' "${notes}" "${RELEASE_COMMIT}" "$(date -u +%Y-%m-%d)" > notes.md
+            gh release edit "${TAG}" --notes-file notes.md
+          else
+            gh release create "${TAG}" out/* --verify-tag --title "${TITLE:-${TAG}}" --generate-notes
+          fi
+      - name: Downloads match the checksums
+        if: ${{ !inputs.dry-run }}
+        run: |
+          mkdir check && cd check
+          gh release download "${TAG}"
+          sha256sum -c ../out/SHA256SUMS.txt
+          # The release holds exactly the files of this build, no more.
+          diff <(ls -1 | sort) <(ls -1 ../out | sort)

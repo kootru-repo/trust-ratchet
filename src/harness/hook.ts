@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { offUnseen } from "./insight.ts";
+import { noteAgentEdit, noteAgentEvent, ownFiles, pendingForAgents, readLedger, running } from "./agents.ts";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -23,6 +24,9 @@ export type Payload = {
   tool_name?: string;
   tool_input?: { file_path?: string };
   stop_hook_active?: boolean;
+  /** Set on the hook calls of a subagent, whose session_id is its parent's. */
+  agent_id?: string;
+  agent_type?: string;
 };
 
 export const MAX_HOLDS = 2;
@@ -125,10 +129,34 @@ const postEdit = (state: State, payload: Payload, sessionId: string): object | n
   const { baseline } = ensureBaseline(sessionId, target.root);
   const { findings } = fileFindings({ baseline, file: target.file, rules: readRules(target.root), comments: readConfig(target.root).comments });
   noteEdit({ root: target.root, sessionId, file: target.file, findings });
+  try {
+    noteAgentEdit({ sessionId, root: target.root, file: target.file, ...(payload.agent_id ? { agentId: payload.agent_id } : {}), ...(payload.agent_type ? { agentType: payload.agent_type } : {}) });
+  } catch (e) {
+    logLine("errors.log", `agent ledger, ${target.root}: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+  }
   if (findings.length === 0) return null;
   const text = renderFindings({ findings, heading: `Ratchet: ${findings.length} fact${findings.length === 1 ? "" : "s"} from programs about the file you just edited.` });
   // A finding that may not hold a turn (a rule on trial) is told, never used to block.
   return mode === "enforce" && findings.some((f) => f.blocking) ? { decision: "block", reason: text } : { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } };
+};
+
+/**
+ * A6: while a background agent of this session runs, only failures in the session's own files hold. An agent's files
+ * here are those its own edits wrote; a shell write cannot be told apart from the session's, so it counts as the
+ * session's and holds. A fault here leaves the findings as they were.
+ */
+const ownWorkOnly = (sessionId: string, root: string, findings: Finding[], changedFiles: string[]): Finding[] => {
+  try {
+    const ledger = readLedger(sessionId, root);
+    const live = running(ledger, Date.now());
+    if (live.length === 0) return findings;
+    const busy = [...new Set(live.flatMap(([, a]) => a.files))];
+    const agentClaims = [...new Set(Object.values(ledger.agents).flatMap((a) => a.files))];
+    return pendingForAgents({ findings, own: ownFiles({ ledger, changed: changedFiles, agentClaims }), busy, running: true });
+  } catch (e) {
+    logLine("errors.log", `agent ledger at Stop, ${root}: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+    return findings;
+  }
 };
 
 const stop = (state: State, sessionId: string): object | null => {
@@ -148,10 +176,20 @@ const stop = (state: State, sessionId: string): object | null => {
       continue;
     }
     if (result === null || result.repeated) continue;
-    const blocking: Finding[] = result.findings.filter((f) => f.blocking);
     const turn = readTurn(sessionId, baseline.root);
+    // A6: failures that may be a running agent's are pending, once. Pending again with nothing changed, they hold.
+    const asJudged = result.findings;
+    const judged = ownWorkOnly(sessionId, baseline.root, asJudged, result.changed);
+    const pending = judged.filter((f, i) => !f.blocking && asJudged[i]?.blocking).length;
+    if (pending > 0 && turn.pendingKey !== undefined && turn.pendingKey === turn.lastKey) turn.pendingKey = undefined;
+    else {
+      result.findings = judged;
+      turn.pendingKey = pending > 0 ? turn.lastKey : undefined;
+    }
+    const blocking: Finding[] = result.findings.filter((f) => f.blocking);
     const held = mode === "enforce" && blocking.length > 0 && turn.holds < MAX_HOLDS;
-    turn.holds = held ? turn.holds + 1 : 0;
+    // A turn let go only because its failures are pending keeps its count of holds.
+    turn.holds = held ? turn.holds + 1 : pending > 0 && result.findings === judged ? turn.holds : 0;
     writeTurn(sessionId, baseline.root, turn);
     const record = writeRecord({ result, sessionId, mode, held });
     // The loop reads the record just written. It is started when the turn is let go, not while it is held.
@@ -189,6 +227,23 @@ const promptSubmit = (state: State, payload: Payload, sessionId: string): null =
   return null;
 };
 
+/**
+ * A subagent starts or stops: stamp the changed files of every repository the session works in. At a start before
+ * the session's first edit, the repository it runs in gets its baseline now, so the agent is known from the start.
+ * It answers nothing, and a fault is logged, never thrown.
+ */
+const subagent = (state: State, payload: Payload, sessionId: string, event: "start" | "stop", agentId: string): null => {
+  try {
+    const here = repoRoot(payload.cwd ?? process.cwd());
+    if (event === "start" && here && effective(state, here).enabled) ensureBaseline(sessionId, here);
+    const roots = sessionBaselines(sessionId).map((b) => b.root).filter((r) => effective(state, r).enabled);
+    noteAgentEvent({ sessionId, roots, event, agentId, ...(payload.agent_type ? { agentType: payload.agent_type } : {}) });
+  } catch (e) {
+    logLine("errors.log", `Subagent${event === "start" ? "Start" : "Stop"}: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+  }
+  return null;
+};
+
 /** One hook call. Returns what to print for Claude Code, or null for nothing. */
 export const handle = (event: string, payload: Payload): object | null => {
   if (process.env.RATCHET_CHILD === "1") return null;
@@ -201,6 +256,7 @@ export const handle = (event: string, payload: Payload): object | null => {
   if (event === "PostToolUse") return postEdit(state, payload, sessionId);
   if (event === "Stop") return stop(state, sessionId);
   if (event === "UserPromptSubmit") return promptSubmit(state, payload, sessionId);
+  if ((event === "SubagentStart" || event === "SubagentStop") && payload.agent_id) return subagent(state, payload, sessionId, event === "SubagentStart" ? "start" : "stop", payload.agent_id);
   return null;
 };
 

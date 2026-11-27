@@ -5,7 +5,7 @@ import path from "node:path";
 import { isFixSubject } from "../history.ts";
 import { EVENTS, install, installed, settingsPath, uninstall } from "./install.ts";
 import { findComments } from "./comments.ts";
-import { findHatches, matchesAny, ruleLines, ruleProblems, type Rule } from "./rules.ts";
+import { findHatches, matchesAny, matchesCarriageReturn, ruleLines, ruleProblems, type Rule } from "./rules.ts";
 import { fileAtCommit, readSource, repoRoot, trackedFiles } from "./session.ts";
 import { clearSwitch, effective, home, normRoot, projectDir, projectFile, readConfig, readJson, readState, setSwitch, writeJson, type CheckCmd, type Mode, type ProjectConfig } from "./state.ts";
 import { isWritten, readRules } from "./turn.ts";
@@ -14,6 +14,11 @@ import { featureMap, generatedGuides, outcomes, pairTests, parseLog, renderFeatu
 import { writeText } from "./state.ts";
 import { allAssessments, gatherFacts, realRecords, runAuto } from "./auto.ts";
 import { levelOf, renderLevel } from "./level.ts";
+import { allowProtected, normalizeGlob } from "./protected.ts";
+import { callerWorkflow, codeqlWorkflow, GATE_REPO, gateExistsAt, otherLock, planCi, readCiPackages, readNodeVersion, resolveTag, rulesetJson, withBlameIgnore } from "./ciinit.ts";
+import { briefText } from "./brief.ts";
+import { builtinName } from "./builtins.ts";
+import { checkCandidates, hasTypescriptAt, readPackages, readPyprojects, tryCheck } from "./checks.ts";
 import { backtest, renderBacktest, summarize } from "./backtest.ts";
 import { ALL_SHAPES, DEFAULT_CAP, DEFAULT_SHAPES, type Shape } from "./propose.ts";
 import { renderDashboard } from "./dashboard.ts";
@@ -23,7 +28,7 @@ import { mustNotFromRulings, type MustNot } from "../options.ts";
 import type { Checked, ReviewResult } from "../types.ts";
 import { readRulings } from "../vault.ts";
 
-export const HARNESS_COMMANDS = new Set(["install", "uninstall", "on", "off", "default", "status", "init", "rule", "census", "hatches", "comments", "measure", "debug", "must-not", "features", "guides", "auto", "level", "dashboard", "backtest", "baseline", "limits", "lessons"]);
+export const HARNESS_COMMANDS = new Set(["install", "uninstall", "on", "off", "default", "status", "init", "rule", "census", "hatches", "comments", "measure", "debug", "must-not", "features", "guides", "auto", "level", "dashboard", "backtest", "baseline", "limits", "lessons", "allow-protected", "ci"]);
 
 /** The places a person ruled false alarms in this project (S14). */
 export const readMustNot = (root: string): MustNot[] => {
@@ -35,7 +40,7 @@ export const readMustNot = (root: string): MustNot[] => {
 export const HARNESS_USAGE = `ratchet install | uninstall                         add or remove the five hook entries in the Claude Code settings (switch state is kept)
 ratchet on | off [--project <dir>] [--mode advise|enforce]   the global switch, or one project's own switch
 ratchet default --project <dir>                       drop a project's own switch, so it follows the global one
-ratchet status [--project <dir>]
+ratchet status [--project <dir>] [--brief]   --brief adds the house rules to paste into a subagent's brief
 ratchet init [--project <dir>] [--in-repo] [--force] [--keep-own]  write a project config from what is found (no whole test suite, ever); --keep-own keeps the checks, tests and drivers written by hand, and the limits set by hand
 ratchet init --pair-tests [--py-test "python -B {test}"] [--ts-test "<cmd> {test}"] [--exclude <glob>]... [--project <dir>]
                                                       map each test that sits beside the file it tests to that file
@@ -61,6 +66,10 @@ ratchet rule list | rule remove --id <id> [--project <dir>]
 ratchet census [--project <dir>] [--tighten]          every rule: count now against its baseline; --tighten lowers a backlog that fell
 ratchet hatches [--project <dir>] [--set-ceiling]     escape hatches in the repository against the stored ceiling
 ratchet measure [--project <dir>] [--last 200]        outcomes from git history and the harness's own records
+ratchet ci codeql [--project <dir>] [--force]   write .github/workflows/codeql.yml (JavaScript and TypeScript), pinned; not part of ci-ok
+ratchet ci blame-ignore --commit <sha> [--note <text>] [--project <dir>]   list a layout-only commit (a formatter run) in .git-blame-ignore-revs
+ratchet ci init [--project <dir>] [--os ubuntu-latest,windows-latest] [--ref <commit>] [--tag <name>] [--skip-ref-check] [--force]   write .github/workflows/ci.yml calling the reusable gate; prints the ruleset command, pushes nothing
+ratchet allow-protected --path <glob> [--minutes 30] [--project <dir>]   allow changes to protected files (builtin:protected) for a while, logged
 ratchet must-not add --files <glob>... --pattern <regex on the line> --reason <why it is fine> [--project <dir>]
 ratchet must-not from-vault --vault <dir> --review <review .json>... [--project <dir>]   false-alarm rulings become must-not-flag cases
 ratchet must-not list [--project <dir>]`;
@@ -85,6 +94,9 @@ const rootOf = (dir: string): string => {
 const writeTarget = (root: string, name: string, inRepo: boolean): string => (inRepo ? path.join(root, ".ratchet", name) : projectFile(root, name));
 
 /** Pure: a config from the scripts and tool settings a repository already has. Tests enter only as file to test maps, by hand. */
+/** The seconds init may spend trying the checks discovery found, all of them together. */
+export const INIT_TRIAL_S = 120;
+
 export const detectConfig = ({ scripts, hasRuff }: { scripts: Record<string, string>; hasRuff: boolean }): ProjectConfig => {
   const checks: CheckCmd[] = [];
   const types = ["check-types", "typecheck", "type-check", "tsc"].find((s) => s in scripts);
@@ -209,6 +221,10 @@ export const harnessCli = (argv: string[], source: string): number => {
   }
   if (command === "status") {
     say(statusText(projectFlag || "."));
+    if (args.has("brief")) {
+      const at = repoRoot(path.resolve(projectFlag || "."));
+      say(at ? `\n${briefText({ config: readConfig(at), rules: readRules(at) })}` : "\nNo git repository here, so there is no brief.");
+    }
     return 0;
   }
 
@@ -397,15 +413,40 @@ export const harnessCli = (argv: string[], source: string): number => {
       }
       for (const key of ["budgetS", "maxTestsPerStop"] as const) if (old[key] !== undefined) Object.assign(config, { [key]: old[key] });
     }
+    // The loop's discovery runs here too, so a project without the loop still gets the checks of its nested packages.
+    // It skips what the config already runs and the loop's excluded folders, and tries for INIT_TRIAL_S in all.
+    const tracked = trackedFiles(root);
+    const exclude = config.autoExclude ?? [];
+    const found: string[] = [];
+    const untried: string[] = [];
+    const began = Date.now();
+    for (const cand of checkCandidates({ files: tracked, scripts: pkg.scripts ?? {}, packages: readPackages(root, tracked, exclude), pyprojects: readPyprojects(root, tracked, exclude), hasTypescript: hasTypescriptAt(root), config, exclude, offerBuiltins: true })) {
+      const leftS = INIT_TRIAL_S - (Date.now() - began) / 1000;
+      if (leftS < 5) {
+        untried.push(cand.name);
+        continue;
+      }
+      const allowedS = Math.min(cand.timeoutS ?? 120, Math.floor(leftS));
+      const trial = tryCheck({ root, check: { ...cand, timeoutS: allowedS } });
+      if (!trial.ok) {
+        // Cut off by what was left of the cap, not by its own limit: it was not really tried.
+        if (allowedS < (cand.timeoutS ?? 120) && trial.seconds >= allowedS - 1) untried.push(cand.name);
+        continue;
+      }
+      const { from: _from, ...entry } = cand;
+      config.checks = [...(config.checks ?? []), { ...entry, timeoutS: Math.max(30, Math.ceil(trial.seconds * 3)) }];
+      found.push(entry.name);
+    }
     writeJson(target, config);
-    say(`Wrote ${target}: checks ${(config.checks ?? []).map((c) => c.name).join(", ") || "none"}; escape hatch ceiling ${config.hatchCeiling}.${keptOwn.length > 0 ? ` Kept your own: ${keptOwn.join(", ")}.` : ""}`);
+    if (untried.length > 0) say(`Not tried, the ${INIT_TRIAL_S} s for trying checks was used up: ${untried.join(", ")}. The loop tries them when it is on (ratchet auto --on).`);
+    say(`Wrote ${target}: checks ${(config.checks ?? []).map((c) => c.name).join(", ") || "none"}; escape hatch ceiling ${config.hatchCeiling}.${found.length > 0 ? ` Found and tried clean: ${found.join(", ")}.` : ""}${keptOwn.length > 0 ? ` Kept your own: ${keptOwn.join(", ")}.` : ""}`);
     say(`No test is run until you map files to the one test that covers them, for example: "tests": [{ "name": "parser", "when": ["src/parse/**"], "command": "npx vitest run test/parse.test.ts", "timeoutS": 60 }]`);
     return 0;
   }
 
   if (command === "rule" && sub === "list") {
     const rules = readRules(root);
-    say(rules.length === 0 ? "No rules." : rules.map((r) => `${r.id} (${r.kind} ${JSON.stringify(r.pattern)} in ${r.files.join(", ")}): ${r.proof ? `proven on ${r.proof.commit.slice(0, 8)} (fired on ${r.proof.firedBefore} removed line(s), ${r.proof.firedAfter} added)` : "not proven on a past fix"}; backlog ${sum(r.baseline ?? {})}. Fix: ${r.fix}`).join("\n"));
+    say(rules.length === 0 ? "No rules." : rules.map((r) => `${r.id} (${r.kind} ${JSON.stringify(r.pattern)} in ${r.files.join(", ")}): ${r.proof ? `proven on ${r.proof.commit.slice(0, 8)} (fired on ${r.proof.firedBefore} removed line(s), ${r.proof.firedAfter} added)` : "not proven on a past fix"}; backlog ${sum(r.baseline ?? {})}. Fix: ${r.fix}${r.kind !== "ban-api" && matchesCarriageReturn(r.pattern) ? " NEVER FIRES: it looks for a carriage return, and rules see lines already split on CR LF. Remove it and use a check that reads bytes." : ""}`).join("\n"));
     return 0;
   }
   if (command === "rule" && sub === "remove") {
@@ -441,6 +482,98 @@ export const harnessCli = (argv: string[], source: string): number => {
     writeJson(writeTarget(root, "rules.json", inRepo), [...rules, rule]);
     say(`Rule ${rule.id} added${rule.proof ? `, proven on ${rule.proof.commit.slice(0, 8)}: fired on ${rule.proof.firedBefore} line(s) the fix removed, on none it added` : ", NOT proven on a past fix (give --proof-commit and --proof-file)"}.`);
     say(Object.keys(found).length === 0 ? "Census: it fires nowhere in the repository now." : `Census: ${sum(found)} more of the same in ${Object.keys(found).length} file(s), kept as the backlog (may fall, never rise): ${top(found, 8)}.`);
+    return 0;
+  }
+
+  if (command === "ci" && sub === "codeql") {
+    const target = path.join(root, ".github", "workflows", "codeql.yml");
+    if (fs.existsSync(target) && !args.has("force")) {
+      say(`A workflow is already there: ${target}. Use --force to write it again.`);
+      return 1;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, codeqlWorkflow());
+    say(`Wrote ${target}: CodeQL for JavaScript and TypeScript on every push, pull request and weekly. It does not block merges unless you add it to the ruleset. Nothing was committed or pushed.`);
+    return 0;
+  }
+
+  if (command === "ci" && sub === "blame-ignore") {
+    const sha = args.flag("commit", "").toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(sha)) {
+      say("Give the full commit of the layout-only change: ratchet ci blame-ignore --commit <40-character commit> [--note <what it was>]");
+      return 1;
+    }
+    const file = path.join(root, ".git-blame-ignore-revs");
+    const current = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    fs.writeFileSync(file, withBlameIgnore(current, sha, args.flag("note", "formatter: layout only")));
+    say(`${file} lists ${sha.slice(0, 12)}. Make git blame use it: git config blame.ignoreRevsFile .git-blame-ignore-revs (GitHub reads the file by itself).`);
+    return 0;
+  }
+
+  if (command === "ci" && sub === "init") {
+    const target = path.join(root, ".github", "workflows", "ci.yml");
+    if (fs.existsSync(target) && !args.has("force")) {
+      say(`A workflow is already there: ${target}. Use --force to write it again.`);
+      return 1;
+    }
+    const tracked = trackedFiles(root);
+    const os = args.flag("os", "").split(",").map((s) => s.trim()).filter(Boolean);
+    const nodeVersion = readNodeVersion(root);
+    const plan = planCi({ packages: readCiPackages(root, tracked), ...(nodeVersion ? { nodeVersion } : {}), ...(os.length > 0 ? { os } : {}) });
+    if (!plan) {
+      say("No package.json with a test script was found, so there is nothing for the gate to run. Add a test script, or write the workflow by hand.");
+      return 1;
+    }
+    const lock = otherLock(tracked, plan.workingDirectory);
+    if (lock) {
+      say(`${plan.workingDirectory === "." ? "" : `${plan.workingDirectory}/`}${lock} is there: the gate installs with npm, which would ignore it. Write the workflow by hand for that package manager.`);
+      return 1;
+    }
+    const version = readJson<{ version?: string }>(path.join(source, "package.json"), {}).version ?? "";
+    const ref = args.flag("ref", "");
+    // A commit given by hand is noted by the tag given with it, or by itself: never by a release it may not be.
+    const tag = ref ? args.flag("tag", ref.slice(0, 12)) : args.flag("tag", version ? `v${version}` : "");
+    const sha = ref || (tag ? resolveTag(tag) : null);
+    if (!sha || !/^[0-9a-f]{40}$/.test(sha)) {
+      say(`Could not find the commit of Ratchet's release ${tag || "(no version)"} at github.com/${GATE_REPO}. Give it with --ref <40-character commit> (and --tag <name> for the note).`);
+      return 1;
+    }
+    if (!args.has("skip-ref-check")) {
+      const exists = gateExistsAt(sha);
+      if (exists !== true) {
+        say(exists === false ? `The gate is not at ${sha.slice(0, 12)} (${tag}) in github.com/${GATE_REPO}: a caller pinned there would fail before it starts. Pin a release that ships .github/workflows/gate.yml with --ref.` : `Could not reach GitHub to check that the gate is at ${sha.slice(0, 12)}. Try again online, or add --skip-ref-check if you have checked it yourself.`);
+        return 1;
+      }
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, callerWorkflow({ plan, sha, tag }));
+    const rulesetFile = path.join(projectDir(root), "ruleset-ci-ok.json");
+    writeText(rulesetFile, rulesetJson());
+    say(`Wrote ${target}: the gate runs ${[plan.lint, plan.check, plan.test].filter(Boolean).join(", ")} in ${plan.workingDirectory} on ${plan.os.join(", ")}, pinned to ${sha.slice(0, 12)} (${tag}).`);
+    say("Nothing was committed or pushed. Review the file, commit it, and push.");
+    say(`Then require ci-ok on main (you run this; Ratchet never changes repository settings):\n  gh api repos/{owner}/{repo}/rulesets -X POST --input "${rulesetFile}"`);
+    say("A private repository on GitHub's free plan cannot enforce a ruleset. There, check main after the fact instead, for example with an audit workflow that opens an issue for any commit that skipped CI.");
+    say("Once the ruleset is on, prove it refuses: push a commit with a failing test to a branch protected the same way, and check that GitHub will not let it in.");
+    return 0;
+  }
+
+  if (command === "allow-protected") {
+    const glob = args.flag("path", "");
+    const minutes = Number(args.flag("minutes", "30"));
+    if (glob === "" || !Number.isFinite(minutes) || minutes <= 0 || minutes > 24 * 60) {
+      say("Give the files and the time: ratchet allow-protected --path <glob> [--minutes 30] (at most 1440).");
+      return 1;
+    }
+    // An allowance that covers no protected path would be granted and change nothing: say so instead.
+    const shown = normalizeGlob(glob);
+    const guarded = (readConfig(root).checks ?? []).filter((c) => builtinName(c.command) === "protected").flatMap((c) => c.when ?? []);
+    const covers = trackedFiles(root).some((f) => matchesAny(f, guarded) && matchesAny(f, [shown])) || matchesAny(shown.replace(/\*+/g, "x"), guarded);
+    if (!covers) {
+      say(`No protected file matches ${shown}. The protected paths here are: ${guarded.join(", ") || "none (no builtin:protected check)"}.`);
+      return 1;
+    }
+    const a = allowProtected({ root, glob, minutes });
+    say(`Changes under ${a.glob} are allowed until ${new Date(a.until).toISOString()} (${minutes} min). This is logged in ${projectFile(root, "allowances.log")}.`);
     return 0;
   }
 

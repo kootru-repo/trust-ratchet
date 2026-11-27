@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { importsOf, runAuto, whenFor } from "../src/harness/auto.ts";
-import { checkCandidates, tryCheck } from "../src/harness/checks.ts";
+import { checkCandidates, checkOnly, manifests, tryCheck, type PackageScripts } from "../src/harness/checks.ts";
 import { extractCode, guardPrompt, proveGuard, refusal, writeGuard } from "../src/harness/guardwriter.ts";
 import { projectDir, projectFile, readConfig, writeJson } from "../src/harness/state.ts";
 import { nearestFirst } from "../src/harness/turn.ts";
@@ -53,6 +53,61 @@ test("a check is a candidate only where the project could run it, a person's che
   // With no tsconfig at the root, the package's own script is the candidate; a lint that checks only is one too.
   const scripts = checkCandidates({ files: [], scripts: { lint: "eslint .", typecheck: "tsc --noEmit", format: "prettier --write ." }, hasTypescript: () => true, config: {} });
   assert.deepEqual(scripts.map((c) => c.command), ["npm run -s lint", "npm run -s typecheck"]);
+});
+
+test("a script is a check only when it cannot rewrite files, and a formatter counts only in its check-only form", () => {
+  for (const body of ["eslint .", "biome check .", "biome format .", "biome ci .", "prettier --check .", "ruff format --check .", "dprint fmt --diff", "tsc --noEmit 2>&1", "tsc --noEmit > /dev/null", "node -e \"[1].map((x) => x)\"", "npm run -s a && npm run -s b"]) assert.equal(checkOnly(body), true, body);
+  for (const body of ["eslint . --fix", "biome check --write .", "prettier --write .", "prettier .", "ruff format .", "black .", "gofmt -w .", "dprint fmt", "tsc > out.txt", "tsc >> log.txt", "sed -i s/a/b/ x", "rm -rf dist && tsc"]) assert.equal(checkOnly(body), false, body);
+});
+
+test("the scripts of a nested package are candidates, run in its folder and scoped to it, and a lint config above the package widens the lint", () => {
+  const files = ["app/biome.json", "app/ts/package.json", "app/ts/tsconfig.json", "app/web/package.json", "node_modules/x/package.json", "a/b/c/d/package.json", "sealed/p/package.json"];
+  const packages: PackageScripts[] = [
+    { dir: "app/ts", scripts: { check: "tsc -p tsconfig.core.json --noEmit", lint: "node tools/guard.ts", test: "node --test" } },
+    { dir: "app/web", scripts: { "format:check": "biome format .", check: "biome check .", typecheck: "tsc --noEmit", build: "tsc" } },
+  ];
+  const found = checkCandidates({ files, scripts: {}, packages, hasTypescript: () => true, config: {} });
+  // app/ts's "check" only runs the compiler, so it is that folder's type-check, which the tsconfig candidate already is.
+  assert.deepEqual(found.map((c) => [c.name, c.command]), [
+    ["types-app-ts", "cd app/ts && npx --no-install tsc --noEmit -p ."],
+    ["lint-app-ts-script", "cd app/ts && npm run -s lint"],
+    ["check-app-web-script", "cd app/web && npm run -s check"],
+    ["types-app-web-script", "cd app/web && npm run -s typecheck"],
+    ["format-app-web-script", "cd app/web && npm run -s format:check"],
+  ]);
+  const lint = found.find((c) => c.name === "lint-app-ts-script");
+  assert.ok(lint?.when?.includes("app/ts/**/*.ts") && lint.when.includes("app/biome.json") && !lint.when.includes("**/*.ts"));
+  assert.equal(lint?.from, "app/ts/package.json");
+  assert.deepEqual(found.find((c) => c.name === "types-app-web-script")?.when?.includes("app/biome.json"), false);
+  // A person's check of the same script stands, and the manifests read stop at four parts and skip node_modules.
+  const kept = checkCandidates({ files, scripts: {}, packages, hasTypescript: () => false, config: { checks: [{ name: "mine", command: "cd app/ts && npm run -s lint" }] } });
+  assert.equal(kept.some((c) => c.name === "lint-app-ts-script"), false);
+  assert.deepEqual(manifests(files, "package.json", ["sealed/**"]), ["app/ts/package.json", "app/web/package.json"]);
+});
+
+test("a pyproject with ruff or mypy settings gives a check in its folder, unless the config already runs that tool", () => {
+  const pyprojects = [{ dir: ".", text: "[project]\nname = 'x'\n[tool.ruff]\nline-length = 100\n" }, { dir: "svc", text: "[tool.mypy]\nstrict = true\n[tool.ruff.lint]\nselect = ['E']\n" }];
+  const found = checkCandidates({ files: [], scripts: {}, pyprojects, hasTypescript: () => false, config: {} });
+  assert.deepEqual(found.map((c) => [c.name, c.command]), [
+    ["ruff-root", "python -m ruff check ."],
+    ["ruff-svc", "cd svc && python -m ruff check ."],
+    ["mypy-svc", "cd svc && python -m mypy ."],
+  ]);
+  assert.deepEqual(found.find((c) => c.name === "mypy-svc")?.when, ["svc/**/*.py", "svc/**/*.pyi", "svc/pyproject.toml"]);
+  // ruff at the root covers every folder; a mypy check in one folder does not stand for another folder.
+  const kept = checkCandidates({ files: [], scripts: {}, pyprojects, hasTypescript: () => false, config: { checks: [{ name: "ruff", command: "python -m ruff check {files}" }] } });
+  assert.deepEqual(kept.map((c) => c.name), ["mypy-svc"]);
+  const two = [{ dir: "svcA", text: "[tool.mypy]\n" }, { dir: "svcB", text: "[tool.mypy]\n" }];
+  const second = checkCandidates({ files: [], scripts: {}, pyprojects: two, hasTypescript: () => false, config: { checks: [{ name: "mypy-svcA", command: "cd svcA && python -m mypy .", origin: "auto" }, { name: "x", command: "truffle test" }] } });
+  assert.deepEqual(second.map((c) => c.name), ["mypy-svcB"]);
+});
+
+test("review of A1: flags and paths are not formatters, hidden rewrites are caught, whole script names are compared, and one name gives one entry", () => {
+  for (const body of ["eslint . --format stylish", "ruff check --output-format=github .", "eslint src/format", "tsc --noEmit > NUL", "npm run -s format:check", "clang-format --dry-run --Werror x.c", "eslint --format=compact ."]) assert.equal(checkOnly(body), true, body);
+  for (const body of ["biome check --apply .", "biome check --apply-unsafe .", "tsc 2> err.log", "tsc &> out.txt", "npm run lint:fix", "npm run format", "npm run fmt", "clang-format -i src/x.c", "./bin/clang-format -i x.c", "npm run format:write && eslint .", "sh -c \"dprint fmt\"", "(npm run format)", ".\\bin\\clang-format.exe -i x.c", "C:/tools/clang-format.exe -i x.c"]) assert.equal(checkOnly(body), false, body);
+  // A configured "npm run -s check-types" is not the root's "check" script.
+  const root = checkCandidates({ files: [], scripts: { check: "biome check .", "fmt:check": "biome format .", "format:check": "biome format ." }, hasTypescript: () => false, config: { checks: [{ name: "types", command: "npm run -s check-types" }] } });
+  assert.deepEqual(root.map((c) => [c.name, c.command]), [["check-root-script", "npm run -s check"], ["format-root-script", "npm run -s format:check"]]);
 });
 
 test("a candidate check is kept only when it ran clean and left the working tree as it was", () => {

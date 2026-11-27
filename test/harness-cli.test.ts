@@ -54,7 +54,7 @@ const quiet = <T>(work: () => T): { value: T; text: string } => {
 test("adding the hooks keeps every other entry, and removing them gives back the same settings", () => {
   const added = addHooks({ settings: SETTINGS, node: "node", entry: "C:/h/app/entry.ts" });
   assert.deepEqual(Object.keys(added), ["env", "hooks", "model"]);
-  assert.deepEqual(Object.keys(added.hooks ?? {}), ["SessionStart", "PostToolUse", "PreToolUse", "Stop", "UserPromptSubmit"]);
+  assert.deepEqual(Object.keys(added.hooks ?? {}), ["SessionStart", "PostToolUse", "PreToolUse", "Stop", "UserPromptSubmit", "SubagentStart", "SubagentStop"]);
   assert.deepEqual(added.hooks?.SessionStart?.[0], SETTINGS.hooks?.SessionStart?.[0]);
   assert.equal(added.hooks?.PostToolUse?.length, 2);
   assert.equal(added.hooks?.PostToolUse?.[1]?.matcher, "Edit|Write|MultiEdit");
@@ -85,7 +85,7 @@ test("install on a copy of a settings file, then uninstall, gives back the file 
     const first = install({ source: SOURCE });
     assert.equal(first.changed, true);
     assert.equal(fs.readFileSync(first.backup ?? "", "utf8"), original);
-    assert.equal(installed().hooks.length, 5);
+    assert.equal(installed().hooks.length, 7);
     const written = JSON.parse(fs.readFileSync(process.env.RATCHET_SETTINGS, "utf8")) as Settings;
     const ours = written.hooks?.Stop?.[0]?.hooks?.[0];
     assert.ok(ours?.args?.includes(MARK));
@@ -202,6 +202,38 @@ test("writing the config again with init --force keeps the loop's switch, its li
   assert.deepEqual({ on: after.autoLimitsOn, limits: after.autoLimits }, { on: true, limits: { tests: 5 } });   // the loop's limits switch and the value it set survive a re-init
 });
 
+test("init maps the checks of a nested package that ran clean and left the tree as it was, and no other", () => {
+  process.env.RATCHET_HOME = tmp("home");
+  const repo = tmp("nested");
+  gitIn(repo, "init", "-q", "-b", "main");
+  put(repo, "app/ts/package.json", JSON.stringify({ scripts: { lint: "node -e 0", check: "node -e \"process.exit(3)\"", "format:check": "node -e 1", test: "node -e 0" } }));
+  put(repo, "app/ts/a.ts", "export const a = 1;\n");
+  gitIn(repo, "add", "-A");
+  gitIn(repo, "commit", "-q", "-m", "add");
+  const out = quiet(() => harnessCli(["init", "--project", repo], SOURCE));
+  assert.equal(out.value, 0);
+  const checks = readConfig(repo).checks ?? [];
+  assert.deepEqual(checks.map((c) => [c.name, c.command, c.origin]), [["lint-app-ts-script", "cd app/ts && npm run -s lint", "auto"], ["format-app-ts-script", "cd app/ts && npm run -s format:check", "auto"], ["lf-line-endings", "builtin:lf", "auto"]]);
+  assert.match(out.text, /Found and tried clean: lint-app-ts-script, format-app-ts-script, lf-line-endings/);
+});
+
+test("init skips the loop's excluded folders and what a kept check already runs", () => {
+  process.env.RATCHET_HOME = tmp("home");
+  const repo = tmp("nested2");
+  gitIn(repo, "init", "-q", "-b", "main");
+  put(repo, "web/package.json", JSON.stringify({ scripts: { lint: "node -e 0" } }));
+  put(repo, "sealed/package.json", JSON.stringify({ scripts: { lint: "node -e 0" } }));
+  gitIn(repo, "add", "-A");
+  gitIn(repo, "commit", "-q", "-m", "add");
+  const file = path.join(projectDir(repo), "config.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ autoExclude: ["sealed/**"], checks: [{ name: "my-web-lint", command: "cd web && npm run lint" }] }));
+  quiet(() => harnessCli(["init", "--project", repo, "--force", "--keep-own"], SOURCE));
+  assert.deepEqual((readConfig(repo).checks ?? []).map((c) => c.name), ["my-web-lint", "lf-line-endings"]);
+  quiet(() => harnessCli(["init", "--project", repo, "--force"], SOURCE));
+  assert.deepEqual((readConfig(repo).checks ?? []).map((c) => c.name), ["lf-line-endings", "lint-web-script"]);
+});
+
 test("init --force --keep-own also keeps the commands and limits a person wrote", () => {
   process.env.RATCHET_HOME = tmp("home");
   const repo = tmp("reinit-own");
@@ -226,4 +258,19 @@ test("init --force --keep-own also keeps the commands and limits a person wrote"
   // without the flag a person's part starts afresh, as before
   quiet(() => harnessCli(["init", "--project", repo, "--force"], SOURCE));
   assert.deepEqual(readConfig(repo).tests?.map((t) => t.name), ["mine"]);
+});
+
+test("rule list names a stored rule that looks for a carriage return as one that never fires", () => {
+  process.env.RATCHET_HOME = tmp("home");
+  const repo = tmp("crrule");
+  gitIn(repo, "init", "-q", "-b", "main");
+  const file = path.join(projectDir(repo), "rules.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify([
+    { id: "no-crlf", kind: "ban-pattern", pattern: "\r$", files: ["**/*.ts"], message: "m", fix: "f" },
+    { id: "ok", kind: "ban-pattern", pattern: "[^\r\n]*TODO", files: ["**/*.ts"], message: "m", fix: "f" },
+  ]));
+  const lines = quiet(() => harnessCli(["rule", "list", "--project", repo], SOURCE)).text.split("\n");
+  assert.match(lines.find((l) => l.startsWith("no-crlf")) ?? "", /NEVER FIRES: it looks for a carriage return/);
+  assert.doesNotMatch(lines.find((l) => l.startsWith("ok")) ?? "", /NEVER FIRES/);
 });

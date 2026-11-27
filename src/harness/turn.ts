@@ -10,6 +10,7 @@ import { exportTree } from "../git.ts";
 import { broke } from "../layer0.ts";
 import { judgeHatches, judgeRules, matchesAny, type Finding, type Rule } from "./rules.ts";
 import { checkBoundaries } from "./boundaries.ts";
+import { builtinName, runBuiltin } from "./builtins.ts";
 import { judgeComments, type CommentsConfig } from "./comments.ts";
 import { baselineComments, baselineHatches, changedFiles, currentHead, isClean, readSource, readTurn, trackedFiles, writeTurn, type Baseline } from "./session.ts";
 import { projectDir, projectFile, readConfig, readJson, slug, writeJson, writeText, type CheckCmd, type Mode } from "./state.ts";
@@ -217,9 +218,15 @@ export const runTurn = ({ sessionId, baseline, now = Date.now, stopDeadline }: {
   for (const { kind, check } of all) {
     const matching = check.when ? changed.filter((f) => matchesAny(f, check.when ?? [])) : changed;
     if (matching.length === 0) continue;
-    const command = check.command.split("{files}").join(matching.map(quote).join(" "));
+    // A built-in check runs inside Ratchet. Several may share a command (builtin:generated), so its name is part of its key.
+    const builtin = builtinName(check.command) !== null;
+    const command = builtin ? `${check.command} (${check.name})` : check.command.split("{files}").join(matching.map(quote).join(" "));
+    const greenKey = builtin ? command : check.command;
+    // builtin:generated also depends on its committed output: a hand edit there must run it again.
+    const into = check.into ? `${check.into.replace(/\\/g, "/").replace(/\/+$/, "")}/` : null;
+    const keyFiles = into ? [...matching, ...changed.filter((f) => f.startsWith(into))] : matching;
     // A command runs again only when its own files changed since it last passed: one touched file must not rerun its test at every later turn end.
-    const ownKey = crypto.createHash("sha1").update(matching.map((f) => `${f}:${hashes.get(f) ?? ""}`).join("\n")).digest("hex");
+    const ownKey = crypto.createHash("sha1").update(keyFiles.map((f) => `${f}:${hashes.get(f) ?? ""}`).join("\n")).digest("hex");
     if (ranBefore[command]?.key === ownKey && ranBefore[command]?.status === "pass") {
       outcomes.push({ kind, name: check.name, command, status: "pass", note: "its files are unchanged since it last passed in this session; not run again", seconds: 0 });
       continue;
@@ -253,19 +260,20 @@ export const runTurn = ({ sessionId, baseline, now = Date.now, stopDeadline }: {
     const ownLimitMs = (check.timeoutS ?? 60) * 1000;
     const limitMs = Math.min(ownLimitMs, leftMs);
     const started = now();
-    const { status, output, timedOut } = runCommand({ command, cwd: root, limitMs });
-    let knownGreen = turn.passed.includes(command) || (baseline.clean && baseline.head !== null && green[check.command] === baseline.head);
-    if (!knownGreen && !timedOut && status !== 0 && !check.onlyChanged && !broke(output)) {
+    const { status, output, timedOut } = builtin ? ((r) => ({ ...r, timedOut: r.status === 124 }))(runBuiltin({ command: check.command, root, files: matching, deadline: now() + limitMs, head: baseline.head, spec: { ...(check.build ? { build: check.build } : {}), ...(check.into ? { into: check.into } : {}) } })) : runCommand({ command, cwd: root, limitMs });
+    let knownGreen = turn.passed.includes(command) || (baseline.clean && baseline.head !== null && green[greenKey] === baseline.head);
+    if (!knownGreen && !timedOut && status !== 0 && !check.onlyChanged && !builtin && !broke(output)) {
       const before = passedAtBaseline({ baseline, command, limitMs: Math.min((check.timeoutS ?? 60) * 1000, deadline - now()) });
       if (before === true) {
         knownGreen = true;
         if (baseline.head !== null && !check.command.includes("{files}")) {
-          green[check.command] = baseline.head;
+          green[greenKey] = baseline.head;
           greenChanged = true;
         }
       } else if (before === false) inheritedNote = " It fails on the baseline commit too.";
     }
-    const judged = judgeCommand({ check, kind, command, status, output, timedOut, changed, knownGreen, seconds: Math.round((now() - started) / 100) / 10 });
+    // lf and protected name each changed file they judge; generated is judged like a command, so drift older than the session does not hold.
+    const judged = judgeCommand({ check: builtin && builtinName(check.command) !== "generated" ? { ...check, onlyChanged: true } : check, kind, command, status, output, timedOut, changed, knownGreen, seconds: Math.round((now() - started) / 100) / 10 });
     if (judged.finding && inheritedNote) judged.finding.detail += inheritedNote;
     // A command on trial reports and never holds the turn: a test the harness wrote starts here, like its rules.
     if (judged.finding && check.stage === "trial") {
@@ -282,7 +290,7 @@ export const runTurn = ({ sessionId, baseline, now = Date.now, stopDeadline }: {
     if (judged.outcome.status === "pass") {
       if (!turn.passed.includes(command)) turn.passed.push(command);
       if (head && !check.command.includes("{files}") && isClean(root)) {
-        green[check.command] = head;
+        green[greenKey] = head;
         greenChanged = true;
       }
     }

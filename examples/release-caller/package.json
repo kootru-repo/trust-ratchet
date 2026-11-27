@@ -1,0 +1,8 @@
+{
+  "name": "release-caller-example",
+  "version": "0.0.0-selftest",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

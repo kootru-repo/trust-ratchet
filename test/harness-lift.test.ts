@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { handle } from "../src/harness/hook.ts";
 import { featureMap, outcomes, pairTests, parseLog, renderFeatureMap } from "../src/harness/outcomes.ts";
-import { matchesAny, ruleLines, ruleProblems, statements, type Rule } from "../src/harness/rules.ts";
+import { matchesAny, matchesCarriageReturn, ruleLines, ruleProblems, statements, type Rule } from "../src/harness/rules.ts";
 import { projectDir, readJson, readState, setSwitch, writeJson } from "../src/harness/state.ts";
 
 const tmp = (name: string): string => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `ratchet-${name}-`)));
@@ -35,6 +35,20 @@ test("T2: a statement rule sees a call written over several lines, a line rule d
   assert.match(ruleProblems({ ...RULE, scope: "file" as "line" }).join(";"), /scope must be line or statement/);
   // A statement is cut at 40 lines, so a runaway bracket cannot swallow a file.
   assert.equal((statements(`x = (\n${"1,\n".repeat(60)})\n`)[0]?.text.match(/1,/g) ?? []).length, 39);
+});
+
+test("a rule pattern that looks for a carriage return is refused, because rules see lines already split on CR LF", () => {
+  for (const pattern of ["\r$", "\\r$", "x\\r", "\\x0d", "\\x0D", "\\u000d", "\\cM", "\\cm", "\\015", "\\15", "[\\r\\n]", "[\\n\\r]+$", "a\\\\\\r", "\\r+", "\\r{1,2}", "\\[\\r"]) {
+    assert.equal(matchesCarriageReturn(pattern), true, pattern);
+    assert.match(ruleProblems({ ...RULE, pattern }).join(";"), /carriage return.*LF line-endings check/, pattern);
+  }
+  // A CR that may match nothing, or sits beside something that can match, still lets the rule work: a negated or mixed
+  // class, a ? * or {0, after it, a group, or a top-level |. \u{d} without the u flag is not a CR.
+  for (const pattern of ["\\\\r", "a\\\\rb", "\\bfor\\b", "\\x0a", "\\n$", "r$", "\\\\x0d", "\\\\\\\\r", "[^\\r\\n]*", "foo[^\\r\\n]*bar", ";\\r?$", "\\r*", "\\r{0,1}", "[\\r\\n]?", "\\u{d}", "\\0150", "\\x0d?", "[ \\t\\r]+$", "[\\t-\\r]", "[a\\r]x", "[\\\\\\r]", ";(\\r)?$", ";(?:\\r\\n)?$", "foo(\\r|$)", "foo(?!\\r)", "\\r$|foo"]) assert.equal(matchesCarriageReturn(pattern), false, pattern);
+  assert.deepEqual(ruleProblems({ ...RULE, pattern: ";\\r?$" }), []);
+  assert.deepEqual(ruleProblems({ ...RULE, pattern: "\\\\r" }), []);
+  // The reason: a line rule never fires on a CRLF file.
+  assert.deepEqual(ruleLines({ ...RULE, pattern: "\\r$", files: ["**/*.ts"] }, "a\r\nb\r\n"), []);
 });
 
 test("T8: a test is mapped only to the file it sits beside, and a language with no command is left out", () => {

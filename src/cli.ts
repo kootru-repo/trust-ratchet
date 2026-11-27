@@ -29,6 +29,7 @@ import { repoRoot } from "./harness/session.ts";
 import { projectDir } from "./harness/state.ts";
 import { reviewWork } from "./harness/work.ts";
 import { readMustNot } from "./harness/cli.ts";
+import { mutate, mutateExit, renderMutate } from "./mutate.ts";
 import { guidesFor, type ReviewOptions } from "./options.ts";
 import { projectFile } from "./harness/state.ts";
 
@@ -40,7 +41,8 @@ const flag = (name: string, fallback: string): string => {
 const flags = (name: string): string[] => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] !== undefined ? [argv[i + 1] as string] : []));
 const log = (line: string): void => console.error(`[${new Date().toISOString().slice(11, 19)}] ${line}`);
 
-const USAGE = `ratchet launchgate [--workers <n>] [--max-workers <n>] [--max-ram <pct>]   (exit 0 start, 1 wait)
+const USAGE = `ratchet mutate --file <path> --test "<command>" [--max 20] [--timeout 120] [--project <dir>]   break the file on purpose in a temporary copy and report which breaks the test misses (exit 0 all caught, 1 missed, 2 usage, 3 test fails unbroken, 4 wait, 5 nothing to try)
+ratchet launchgate [--workers <n>] [--max-workers <n>] [--max-ram <pct>]   (exit 0 start, 1 wait)
 ratchet gates [--project <dir>] [--file <gates.json>]   (exit 0 when row 18 allows auto-merge, 1 when rows are open)
 ratchet decisions <log.md> [--repo <dir>] [--previous <file>]
 ratchet drivers [--project <dir>]   (checks each configured driver against the contract; runs them)
@@ -149,6 +151,29 @@ const main = async (): Promise<void> => {
     const d = decideLaunch(await readMachine(workers), { ...DEFAULT_LIMITS, maxWorkers: Number(flag("max-workers", String(DEFAULT_LIMITS.maxWorkers))), maxRamPercent: Number(flag("max-ram", String(DEFAULT_LIMITS.maxRamPercent))) });
     console.log(d.start ? "start" : `wait: ${d.reasons.join("; ")}`);
     process.exitCode = d.start ? 0 : 1;
+    return;
+  }
+  if (argv[0] === "mutate") {
+    const root = repoRoot(path.resolve(flag("project", process.cwd())));
+    const file = flag("file", "").replace(/\\/g, "/");
+    const testCmd = flag("test", "");
+    const max = Number(flag("max", "20"));
+    const timeoutS = Number(flag("timeout", "120"));
+    if (!root || file === "" || testCmd === "" || !Number.isInteger(max) || max < 1 || !Number.isFinite(timeoutS) || timeoutS < 1) {
+      console.log('Give the file and the test, in a git repository: ratchet mutate --file src/x.ts --test "node --test test/x.test.ts" [--max <whole number, 1 or more>] [--timeout <seconds>]');
+      process.exitCode = 2;
+      return;
+    }
+    // One test runs at a time, so only the gate's memory and processor limits apply, not its process count.
+    const d = decideLaunch(await readMachine(0), { ...DEFAULT_LIMITS, maxProcesses: Number.POSITIVE_INFINITY });
+    if (!d.start) {
+      console.log(`wait: ${d.reasons.join("; ")}`);
+      process.exitCode = 4;
+      return;
+    }
+    const report = mutate({ root, file, test: testCmd, max, timeoutS });
+    console.log(renderMutate(file, report));
+    process.exitCode = mutateExit(report);
     return;
   }
   if (argv[0] === "gates") {
