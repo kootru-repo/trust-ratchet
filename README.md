@@ -258,6 +258,7 @@ ratchet review . src/parse.ts --check "npm run check-types" --out report.md
 | `baseline [--minutes 10]` | Run the mapped commands once on the tree as it is. |
 | `auto [--on\|--off] [--guards] [--backlog]` | One pass of the autonomous loop, or switch it. |
 | `limits`, `level`, `lessons`, `measure`, `dashboard`, `backtest`, `guides` | Reports and the loop's own limits. |
+| `check --base <ref> [--checks a,b]` | The turn-end checks on everything changed since a commit, for CI: any finding fails. The gate's `ratchet-check` input runs it. |
 | `ci init` / `ci codeql` / `ci blame-ignore --commit <sha>` | Write the project's CI caller and ruleset file, a CodeQL workflow, or a blame-ignore entry. Nothing is pushed and no setting is changed. |
 | `mutate --file <path> --test "<cmd>"` | Break the file on purpose in a temporary copy and report which breaks the test misses. |
 | `review`, `review-commit`, `review-work` | Code review (see below). |

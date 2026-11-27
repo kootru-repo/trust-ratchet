@@ -3,7 +3,7 @@
 This is the output of `ratchet help`. Every command takes `--project <dir>` where shown; the default is the current folder. `ratchet --version` prints the version.
 
 ```
-Ratchet 0.2.0: a trust harness for AI coding agents.
+Ratchet 0.2.1: a trust harness for AI coding agents.
 
 Start here:
   ratchet install                              add the hooks to Claude Code (your settings file is backed up first)
@@ -69,6 +69,7 @@ ratchet rule list | rule remove --id <id> [--project <dir>]
 ratchet census [--project <dir>] [--tighten]          every rule: count now against its baseline; --tighten lowers a backlog that fell
 ratchet hatches [--project <dir>] [--set-ceiling]     escape hatches in the repository against the stored ceiling
 ratchet measure [--project <dir>] [--last 200]        outcomes from git history and the harness's own records
+ratchet check --base <ref> [--checks name,name] [--project <dir>]   the turn-end checks on everything changed since <ref>, for CI: any finding fails (exit 1)
 ratchet ci codeql [--project <dir>] [--force]   write .github/workflows/codeql.yml (JavaScript and TypeScript), pinned; not part of ci-ok
 ratchet ci blame-ignore --commit <sha> [--note <text>] [--project <dir>]   list a layout-only commit (a formatter run) in .git-blame-ignore-revs
 ratchet ci init [--project <dir>] [--os ubuntu-latest,windows-latest] [--ref <commit>] [--tag <name>] [--skip-ref-check] [--force]   write .github/workflows/ci.yml calling the reusable gate; prints the ruleset command, pushes nothing

@@ -31,6 +31,18 @@ on:
       test-command:
         type: string
         default: npm test
+      ratchet-check:
+        description: Also run Ratchet's turn-end checks (file checks, project rules, escape hatches, and the project's checks) on everything changed since the base, with the project config in .ratchet/
+        type: boolean
+        default: false
+      ratchet-checks:
+        description: Names of the project's checks to run in that job, comma-separated; empty runs them all
+        type: string
+        default: ""
+      ratchet-package:
+        description: Where to install Ratchet from; empty means this workflow's own commit of kootru-repo/trust-ratchet
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -49,6 +61,56 @@ jobs:
           node-version: ${{ inputs.node-version }}
       - run: ${{ inputs.install-command }}
       - run: ${{ inputs.lint-command }}
+  ratchet:
+    if: inputs.ratchet-check
+    runs-on: ubuntu-latest
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Install Ratchet
+        env:
+          PACKAGE: ${{ inputs.ratchet-package }}
+          OWN_SHA: ${{ github.job_workflow_sha }}
+        run: |
+          if [ -z "${PACKAGE}" ]; then
+            if [ -z "${OWN_SHA}" ]; then echo "The gate's own commit is unknown, so Ratchet cannot be pinned: set ratchet-package."; exit 1; fi
+            PACKAGE="github:kootru-repo/trust-ratchet#${OWN_SHA}"
+          fi
+          echo "Installing ${PACKAGE}"
+          npm install -g "${PACKAGE}"
+          ratchet --version
+      - name: Install the project, for checks that use its tools
+        if: inputs.install-command != ''
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.install-command }}
+      - name: Ratchet's checks on what changed
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          BEFORE: ${{ github.event.before }}
+          CHECKS: ${{ inputs.ratchet-checks }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RATCHET_HOME: ${{ runner.temp }}/ratchet-home
+        run: |
+          valid() { [ -n "$1" ] && [ "$1" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$1^{commit}" 2>/dev/null; }
+          base=""
+          for c in "${PR_BASE}" "${QUEUE_BASE}" "${BEFORE}"; do if valid "$c"; then base="$c"; break; fi; done
+          if [ -z "${base}" ]; then
+            # A new branch, or a force push that dropped the old head: compare with where it left the default
+            # branch, or on the default branch itself with the commit before.
+            mb=$(git merge-base HEAD "origin/${DEFAULT_BRANCH}" 2>/dev/null || true)
+            if valid "${mb}" && [ "${mb}" != "$(git rev-parse HEAD)" ]; then base="${mb}";
+            elif git rev-parse -q --verify HEAD~1 >/dev/null; then base=$(git rev-parse HEAD~1);
+            else echo "The first commit of the repository: nothing to compare with."; exit 0; fi
+          fi
+          echo "Base: ${base}"
+          ratchet check --base "${base}" --checks "${CHECKS}"
   test:
     name: test (${{ matrix.os }})
     strategy:

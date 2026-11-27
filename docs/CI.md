@@ -29,6 +29,26 @@ A private repository on GitHub's free plan cannot enforce a ruleset. There, chec
 
 Once the ruleset is on, prove that it refuses. Push a commit with a failing test to a branch protected the same way, and check that GitHub will not let it in.
 
+## Ratchet's checks in CI
+
+Ratchet's turn-end checks run only when an agent ends a turn. A change made by hand, or by an agent with Ratchet off, never meets them. Close that gap with the gate's `ratchet-check` input:
+
+```yaml
+    with:
+      ratchet-check: true
+      ratchet-checks: lf-line-endings,fixtures-unchanged   # empty runs all of the project's checks
+```
+
+The job installs the project with `install-command` in `working-directory`, so checks can use its tools. It then runs `ratchet check --base <ref>` on everything changed since a base. The base is the first of these that exists: the pull request's base, the merge queue's base, the commit before the push, where the branch left the default branch, or the commit before. A repository's first commit has nothing to compare with. The check applies:
+- the file checks: syntax, the project's rules, escape hatches added;
+- the project's checks you name, built-ins included.
+
+Every finding fails, and so does a check that could not run. Tests and drivers stay with your own CI.
+
+It reads the project config from `.ratchet/` in the repository (`config.json`, `rules.json`), so the config CI uses is the one in the tree. By default it installs Ratchet from the same commit the gate is pinned to.
+
+A deliberate re-record of protected files passes when a commit in the range carries a git trailer such as `Ratchet-Allow-Protected: test/fixtures/**` in its trailer block (the last paragraph, like `Co-Authored-By:`), so the permission is in the history. It covers the whole range of the push or pull request. Deleting or renaming a protected file counts as changing it.
+
 ## The release: `release.yml`
 
 The release builds a tag's downloads on each system and puts them on that tag's release. It runs these steps:

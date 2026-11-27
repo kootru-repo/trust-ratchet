@@ -5,7 +5,7 @@ import path from "node:path";
 import { isFixSubject } from "../history.ts";
 import { EVENTS, install, installed, settingsPath, uninstall } from "./install.ts";
 import { findComments } from "./comments.ts";
-import { findHatches, matchesAny, matchesCarriageReturn, ruleLines, ruleProblems, type Rule } from "./rules.ts";
+import { findHatches, matchesAny, matchesCarriageReturn, renderFindings, ruleLines, ruleProblems, type Rule } from "./rules.ts";
 import { fileAtCommit, readSource, repoRoot, trackedFiles } from "./session.ts";
 import { clearSwitch, effective, home, normRoot, projectDir, projectFile, readConfig, readJson, readState, setSwitch, writeJson, type CheckCmd, type Mode, type ProjectConfig } from "./state.ts";
 import { isWritten, readRules } from "./turn.ts";
@@ -17,6 +17,7 @@ import { levelOf, renderLevel } from "./level.ts";
 import { allowProtected, normalizeGlob } from "./protected.ts";
 import { callerWorkflow, codeqlWorkflow, GATE_REPO, gateExistsAt, otherLock, planCi, readCiPackages, readNodeVersion, resolveTag, rulesetJson, withBlameIgnore } from "./ciinit.ts";
 import { briefText } from "./brief.ts";
+import { ciCheck } from "./cicheck.ts";
 import { builtinName } from "./builtins.ts";
 import { checkCandidates, hasTypescriptAt, readPackages, readPyprojects, tryCheck } from "./checks.ts";
 import { backtest, renderBacktest, summarize } from "./backtest.ts";
@@ -28,7 +29,7 @@ import { mustNotFromRulings, type MustNot } from "../options.ts";
 import type { Checked, ReviewResult } from "../types.ts";
 import { readRulings } from "../vault.ts";
 
-export const HARNESS_COMMANDS = new Set(["install", "uninstall", "on", "off", "default", "status", "init", "rule", "census", "hatches", "comments", "measure", "debug", "must-not", "features", "guides", "auto", "level", "dashboard", "backtest", "baseline", "limits", "lessons", "allow-protected", "ci"]);
+export const HARNESS_COMMANDS = new Set(["install", "uninstall", "on", "off", "default", "status", "init", "rule", "census", "hatches", "comments", "measure", "debug", "must-not", "features", "guides", "auto", "level", "dashboard", "backtest", "baseline", "limits", "lessons", "allow-protected", "ci", "check"]);
 
 /** The places a person ruled false alarms in this project (S14). */
 export const readMustNot = (root: string): MustNot[] => {
@@ -66,6 +67,7 @@ ratchet rule list | rule remove --id <id> [--project <dir>]
 ratchet census [--project <dir>] [--tighten]          every rule: count now against its baseline; --tighten lowers a backlog that fell
 ratchet hatches [--project <dir>] [--set-ceiling]     escape hatches in the repository against the stored ceiling
 ratchet measure [--project <dir>] [--last 200]        outcomes from git history and the harness's own records
+ratchet check --base <ref> [--checks name,name] [--project <dir>]   the turn-end checks on everything changed since <ref>, for CI: any finding fails (exit 1)
 ratchet ci codeql [--project <dir>] [--force]   write .github/workflows/codeql.yml (JavaScript and TypeScript), pinned; not part of ci-ok
 ratchet ci blame-ignore --commit <sha> [--note <text>] [--project <dir>]   list a layout-only commit (a formatter run) in .git-blame-ignore-revs
 ratchet ci init [--project <dir>] [--os ubuntu-latest,windows-latest] [--ref <commit>] [--tag <name>] [--skip-ref-check] [--force]   write .github/workflows/ci.yml calling the reusable gate; prints the ruleset command, pushes nothing
@@ -483,6 +485,29 @@ export const harnessCli = (argv: string[], source: string): number => {
     say(`Rule ${rule.id} added${rule.proof ? `, proven on ${rule.proof.commit.slice(0, 8)}: fired on ${rule.proof.firedBefore} line(s) the fix removed, on none it added` : ", NOT proven on a past fix (give --proof-commit and --proof-file)"}.`);
     say(Object.keys(found).length === 0 ? "Census: it fires nowhere in the repository now." : `Census: ${sum(found)} more of the same in ${Object.keys(found).length} file(s), kept as the backlog (may fall, never rise): ${top(found, 8)}.`);
     return 0;
+  }
+
+  if (command === "check") {
+    const base = args.flag("base", "");
+    if (base === "") {
+      say("Give the commit to compare with: ratchet check --base <ref> [--checks name,name] (in CI: the pull request's base, or the commit before the push).");
+      return 2;
+    }
+    const only = args.flag("checks", "").split(",").map((s) => s.trim()).filter(Boolean);
+    let result: ReturnType<typeof ciCheck>;
+    try {
+      result = ciCheck({ root, base, only });
+    } catch (e) {
+      say(`Could not compare with ${base}: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}. In CI, check out the full history (fetch-depth: 0).`);
+      return 2;
+    }
+    say(`Ratchet check against ${result.base.slice(0, 12)}: ${result.changed.length} changed file(s); file checks and ${result.ran.length === 0 ? "no project check" : result.ran.join(", ")}.${result.allowed.length > 0 ? ` Protected changes allowed by commit trailers: ${result.allowed.join(", ")}.` : ""}`);
+    if (result.findings.length === 0) {
+      say("Nothing failed.");
+      return 0;
+    }
+    say(renderFindings({ findings: result.findings, heading: `${result.findings.length} failing:` }));
+    return 1;
   }
 
   if (command === "ci" && sub === "codeql") {

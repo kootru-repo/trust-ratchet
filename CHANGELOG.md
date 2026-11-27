@@ -2,6 +2,12 @@
 
 Notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.1] - 2026-11-27
+
+### Added
+- `ratchet check --base <ref> [--checks a,b]`: the turn-end checks (syntax, project rules, escape hatches, and the project's checks, built-ins included) on everything changed since a commit. Any finding fails. It is for CI, so a change made by hand meets the same checks as an agent's turn.
+- The reusable gate's `ratchet-check` input runs it in CI, reading the project config from `.ratchet/`. A commit trailer `Ratchet-Allow-Protected: <glob>` allows a deliberate re-record. See [docs/CI.md](docs/CI.md).
+
 ## [0.2.0] - 2026-11-27
 
 Run `ratchet install` again after updating: it brings the new built-in checks to the installed copy the hooks run, and adds two hook entries (seven in all).
